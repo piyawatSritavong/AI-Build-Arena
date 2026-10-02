@@ -1,0 +1,67 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { saveBuild } from "./actions";
+
+const input = "w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2";
+
+export default async function MePage({ searchParams }: PageProps<"/me">) {
+  const { saved, error } = await searchParams;
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) redirect("/login?next=/me");
+
+  const [{ data: profile }, { data: build }] = await Promise.all([
+    supabase.from("profiles").select("username, display_name, avatar_url").eq("id", auth.user.id).single(),
+    supabase.from("builds").select("name, base_model, client, gear").eq("user_id", auth.user.id).eq("is_primary", true).maybeSingle(),
+  ]);
+
+  return (
+    <main className="mx-auto w-full max-w-xl flex-1 space-y-8 px-4 py-10">
+      <header className="flex items-center gap-4">
+        {profile?.avatar_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profile.avatar_url} alt="" className="size-14 rounded-full" />
+        )}
+        <div className="flex-1">
+          <h1 className="text-xl font-semibold">{profile?.display_name ?? profile?.username}</h1>
+          <p className="text-sm opacity-70">@{profile?.username}</p>
+        </div>
+        <form action="/auth/signout" method="post">
+          <button className="text-sm underline opacity-70">Sign out</button>
+        </form>
+      </header>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">My AI Build</h2>
+        {saved && <p className="text-sm text-green-600">Saved.</p>}
+        {error && <p className="text-sm text-red-500">Could not save ({String(error)}).</p>}
+        <form action={saveBuild} className="space-y-3">
+          <label className="block space-y-1 text-sm">
+            <span>Build name</span>
+            <input name="name" required maxLength={60} defaultValue={build?.name ?? ""} className={input} />
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span>Base model (self-declared)</span>
+            <input name="base_model" required placeholder="claude-opus-5-5" defaultValue={build?.base_model ?? ""} className={input} />
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span>Client</span>
+            <select name="client" defaultValue={build?.client ?? "claude-code"} className={input}>
+              <option value="claude-code">Claude Code</option>
+              <option value="codex">Codex</option>
+              <option value="cursor">Cursor</option>
+              <option value="chatgpt">ChatGPT</option>
+              <option value="claude-desktop">Claude Desktop</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span>Gear (comma or newline separated, self-declared)</span>
+            <textarea name="gear" rows={3} defaultValue={((build?.gear as string[] | null) ?? []).join(", ")} className={input} />
+          </label>
+          <button className="rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">Save build</button>
+        </form>
+      </section>
+    </main>
+  );
+}
