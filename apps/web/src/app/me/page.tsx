@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { KNOWN_MODELS } from "@arena/core";
 import { createClient } from "@/lib/supabase/server";
 import { saveBuild } from "./actions";
 import { McpConnect } from "./mcp-connect";
@@ -46,7 +47,11 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           </label>
           <label className="block space-y-1 text-sm">
             <span>Base model (self-declared)</span>
-            <input name="base_model" required placeholder="claude-opus-5-5" defaultValue={build?.base_model ?? ""} className={input} />
+            <select name="base_model" defaultValue={build?.base_model ?? "claude-opus-5-5"} className={input}>
+              {KNOWN_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </label>
           <label className="block space-y-1 text-sm">
             <span>Client</span>

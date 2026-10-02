@@ -45,3 +45,30 @@ describe("computeScore", () => {
     expect(computeScore({ accuracy: 1, durationMs: 2000, timeLimitMs: 1000, baselineScore: 70 })).toEqual({ score: 80, lift: 10 });
   });
 });
+
+import { invoiceTotals, thaiIdCheckDigit, toRoman } from "./index";
+
+describe("registry", () => {
+  it("has 10 global + 5 thai with unique ids and sane metadata", () => {
+    expect(challenges.filter((c) => c.league === "global")).toHaveLength(10);
+    expect(challenges.filter((c) => c.league === "thai")).toHaveLength(5);
+    expect(new Set(challenges.map((c) => c.id)).size).toBe(15);
+    for (const c of challenges) expect(c.timeLimitSeconds).toBeGreaterThan(0);
+  });
+  it("keeps inputs small enough for an MCP tool result (< 40 KB)", () => {
+    for (const c of challenges) expect(JSON.stringify(c.generate("size").input).length).toBeLessThan(40_000);
+  });
+  it("different seeds give different inputs", () => {
+    for (const c of challenges) expect(c.generate("a").input).not.toEqual(c.generate("b").input);
+  });
+});
+
+describe("reference solvers", () => {
+  it("roman", () => expect([1, 4, 9, 14, 40, 90, 400, 1994, 3999].map(toRoman)).toEqual(["I", "IV", "IX", "XIV", "XL", "XC", "CD", "MCMXCIV", "MMMCMXCIX"]));
+  it("thai id check digit", () => expect(thaiIdCheckDigit("110170020345")).toBe(0));
+  it("vat/wht", () => {
+    expect(invoiceTotals({ items: [{ description: "x", amount: 10700 }], vat_mode: "inclusive", wht_rate: 3 })).toEqual({ base: 10000, vat: 700, wht: 300, net: 10400 });
+    expect(invoiceTotals({ items: [{ description: "x", amount: 1000.5 }], vat_mode: "exclusive", wht_rate: 0 })).toEqual({ base: 1000.5, vat: 70.04, wht: 0, net: 1070.54 });
+    expect(invoiceTotals({ items: [{ description: "x", amount: 100 }], vat_mode: "none", wht_rate: 5 })).toEqual({ base: 100, vat: 0, wht: 5, net: 95 });
+  });
+});

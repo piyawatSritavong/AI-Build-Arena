@@ -24,7 +24,7 @@ describe.skipIf(!url)("MCP e2e", () => {
     if (error) throw error;
     userId = data.user.id;
     await db.from("builds").insert({ user_id: userId, name: "e2e build", base_model: "e2e-vanilla" });
-    await db.from("baselines").upsert({ challenge_id: "sample-sum-of-evens", model: "e2e-vanilla", runs: 3, pass_rate: 0.67, avg_score: 70 });
+    await db.from("baselines").upsert({ challenge_id: "sum-of-evens", model: "e2e-vanilla", runs: 3, pass_rate: 0.67, avg_score: 70 });
     const t = await generateApiToken();
     await db.from("api_tokens").insert({ user_id: userId, token_prefix: t.prefix, token_hash: t.hash });
     client = new Client({ name: "arena-e2e", version: "0.0.0" });
@@ -46,11 +46,13 @@ describe.skipIf(!url)("MCP e2e", () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(["get_challenge", "list_challenges", "my_stats", "submit_answer"]);
     const list = await call("list_challenges");
-    expect(Object.values(list).filter(Boolean).map((c: any) => c.id)).toEqual(expect.arrayContaining(["sample-sum-of-evens", "thai-baht-text"]));
+    const ids = Object.values(list).filter(Boolean).map((c: any) => c.id);
+    expect(ids).toHaveLength(15);
+    expect(ids).toEqual(expect.arrayContaining(["sum-of-evens", "thai-baht-text", "thai-vat-wht"]));
   });
 
   it("solves sum-of-evens with Lift, blocks resubmission", async () => {
-    const a = await call("get_challenge", { challenge_id: "sample-sum-of-evens" });
+    const a = await call("get_challenge", { challenge_id: "sum-of-evens" });
     const answer = (a.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
     const r = await call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer), model: "e2e", tokens_used: 123 });
     expect(r).toMatchObject({ correct: true, accuracy: 1 });

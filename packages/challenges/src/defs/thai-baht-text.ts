@@ -38,6 +38,9 @@ export const thaiBahtText: ChallengeDefinition<{ amounts: string[] }, string[]> 
   league: "thai",
   category: "thai-text",
   title: "Baht Text",
+  summary: "Convert amounts into Thai baht text (BAHTTEXT rules).",
+  difficulty: 2,
+  timeLimitSeconds: 600,
   prompt: [
     "Convert each amount in `input.amounts` (baht, 2 decimals) to Thai baht text, like Excel `BAHTTEXT`.",
     "",

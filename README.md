@@ -21,3 +21,7 @@ Stateless Streamable HTTP; auth = per-user API token (`Authorization: Bearer aba
 - ChatGPT: remote MCP connectors need a public HTTPS URL and only offer OAuth / no-auth, so `?token=` is the interim fallback; real fix = MCP OAuth (scale path).
 
 E2E (app running on :3000 + local Supabase): `pnpm build && pnpm --filter @arena/web start` then `pnpm test:e2e`.
+
+## Challenges & baselines
+- Registry in `packages/challenges/src` (10 Global + 5 Thai) is the source of truth; `pnpm --filter @arena/challenges sync` upserts `public.challenges` (also run by `pnpm db:reset`, and once against prod at deploy).
+- Baselines (vanilla model, no tools, single shot) for Lift: `pnpm --filter @arena/challenges baselines -- --models claude-opus-5-5,claude-sonnet-5-5,claude-haiku-4-5 --runs 3`. Needs `ANTHROPIC_API_KEY`; costs real API spend. `--dry-run` exercises the pipeline for free.

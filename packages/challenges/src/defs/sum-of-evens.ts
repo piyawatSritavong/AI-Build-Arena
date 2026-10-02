@@ -2,11 +2,14 @@ import type { ChallengeDefinition } from "@arena/core";
 import { createRng } from "../rng";
 
 export const sumOfEvens: ChallengeDefinition<{ numbers: number[] }, number> = {
-  id: "sample-sum-of-evens",
+  id: "sum-of-evens",
   version: 1,
   league: "global",
   category: "logic",
   title: "Sum of Evens",
+  summary: "Warm-up: sum the even numbers in a generated list.",
+  difficulty: 1,
+  timeLimitSeconds: 300,
   prompt: [
     "Return the sum of all **even** integers in `input.numbers` (negative numbers included; 0 is even).",
     "",

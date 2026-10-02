@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { KNOWN_MODELS } from "@arena/core";
 import { createClient } from "@/lib/supabase/server";
 
 const CLIENTS = ["claude-code", "codex", "cursor", "chatgpt", "claude-desktop", "other"] as const;
@@ -12,7 +13,8 @@ export async function saveBuild(formData: FormData) {
   if (!auth.user) redirect("/login");
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
-  const baseModel = String(formData.get("base_model") ?? "").trim().slice(0, 80);
+  const baseModelRaw = String(formData.get("base_model") ?? "");
+  const baseModel = (KNOWN_MODELS as readonly string[]).includes(baseModelRaw) ? baseModelRaw : "other";
   const clientRaw = String(formData.get("client") ?? "");
   const client = (CLIENTS as readonly string[]).includes(clientRaw) ? clientRaw : "other";
   const gear = String(formData.get("gear") ?? "")

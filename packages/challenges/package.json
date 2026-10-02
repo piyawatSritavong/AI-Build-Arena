@@ -3,8 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p .", "test": "vitest run" },
-  "dependencies": { "@arena/core": "workspace:*" },
-  "devDependencies": { "typescript": "^5", "vitest": "^5.0.3" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "sync": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/sync.ts",
+    "baselines": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/baselines.ts"
+  },
+  "dependencies": {
+    "@arena/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@arena/db": "workspace:^",
+    "@supabase/supabase-js": "^2.117.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.3"
+  }
 }

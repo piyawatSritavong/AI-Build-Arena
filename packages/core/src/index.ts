@@ -13,6 +13,9 @@ export interface ChallengeDefinition<Input extends Json = Json, Answer extends J
   league: League;
   category: string;
   title: string;
+  summary: string; // one line for list_challenges / leaderboard
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  timeLimitSeconds: number;
   /** Markdown instructions shown via MCP get_challenge. Must state the exact answer format. */
   prompt: string;
   /** Deterministic: same seed => same input and expected answer. */
@@ -64,3 +67,15 @@ export interface LoadoutParser {
   canParse(text: string, filename?: string): boolean;
   parse(text: string, filename?: string): DetectedGear[];
 }
+
+/** Base models selectable on a build; baselines are measured per id so Lift lines up. */
+export const KNOWN_MODELS = [
+  "claude-opus-5-5",
+  "claude-sonnet-5-5",
+  "claude-haiku-4-5",
+  "claude-fable-5-1",
+  "gpt-5",
+  "gpt-5-mini",
+  "gemini-2.5-pro",
+  "other",
+] as const;
