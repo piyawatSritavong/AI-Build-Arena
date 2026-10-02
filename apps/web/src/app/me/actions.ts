@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { KNOWN_MODELS, SPRITES } from "@arena/core";
 import { createClient } from "@/lib/supabase/server";
+import { track } from "@/lib/track";
 
 const CLIENTS = ["claude-code", "codex", "cursor", "chatgpt", "claude-desktop", "other"] as const;
 
@@ -37,6 +38,7 @@ export async function saveBuild(formData: FormData) {
     ? await supabase.from("builds").update(row).eq("id", existing.id)
     : await supabase.from("builds").insert({ ...row, user_id: auth.user.id });
   if (error) redirect("/me?error=save");
+  await track("build_saved", auth.user.id, { base_model: baseModel, client, gear_count: gear.length, first: !existing });
 
   revalidatePath("/me");
   redirect("/me?saved=1");

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { GEAR, TREND, trendCheck, type GearEntry } from "@arena/loadout";
+import { capture } from "@/components/analytics";
 
 const byCategory = Object.entries(
   GEAR.reduce<Record<string, GearEntry[]>>((acc, g) => ((acc[g.category] ??= []).push(g), acc), {}),
@@ -49,7 +50,7 @@ export function TrendClient({ initial }: { initial: string[] }) {
               </fieldset>
             ))}
           </div>
-          <button onClick={() => setDone(true)} className="rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">
+          <button onClick={() => (setDone(true), capture("trend_checked", { picked: picked.size, sync: report.syncPct }))} className="rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">
             Check my trend fit
           </button>
         </>

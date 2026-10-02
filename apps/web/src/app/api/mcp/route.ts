@@ -1,9 +1,14 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateToken, createArenaMcpServer } from "@arena/mcp";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Stateless Streamable HTTP: a fresh server + transport per request.
+const limited = (message: string) =>
+  Response.json({ jsonrpc: "2.0", error: { code: -32029, message }, id: null }, { status: 429, headers: { "Retry-After": "60" } });
+
 async function handle(request: Request) {
+  if (!(await rateLimit(`mcp-ip:${clientIp(request.headers)}`, 120))) return limited("Too many requests from this IP. Slow down.");
   const auth = request.headers.get("authorization");
   // ?token= is a fallback for clients that cannot set headers; prefer the Authorization header.
   const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : new URL(request.url).searchParams.get("token");
@@ -15,6 +20,7 @@ async function handle(request: Request) {
       { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="ai-build-arena"' } },
     );
   }
+  if (!(await rateLimit(`mcp-user:${userId}`, 60))) return limited("Rate limit: 60 MCP requests per minute.");
   const server = createArenaMcpServer({ db, userId });
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   await server.connect(transport);

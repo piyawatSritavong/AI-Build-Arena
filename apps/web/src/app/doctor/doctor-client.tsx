@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { analyzeLoadout, parseLoadout, type LoadoutReport } from "@arena/loadout";
 import { saveScan } from "./actions";
+import { capture } from "@/components/analytics";
 
 const BADGE: Record<string, string> = {
   redundant: "bg-amber-400 text-black",
@@ -30,7 +31,9 @@ export function DoctorClient({ signedIn }: { signedIn: boolean }) {
     const inputs = [...files, ...(text.trim() ? [{ name: "pasted", text }] : [])];
     const parsed = inputs.map((i) => parseLoadout(i.text, i.name));
     setErrors(parsed.flatMap((p, i) => (p.error ? [`${inputs[i]!.name}: ${p.error}`] : [])));
-    setReport(analyzeLoadout(parsed));
+    const r = analyzeLoadout(parsed);
+    setReport(r);
+    capture("doctor_analyzed", { items: r.summary.total, findings: r.findings.length, clean: r.summary.cleanBuild });
     setSaved(null);
   }
 

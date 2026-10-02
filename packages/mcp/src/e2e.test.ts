@@ -75,4 +75,13 @@ describe.skipIf(!url)("MCP e2e", () => {
     const s = await call("my_stats");
     expect(s).toMatchObject({ total_attempts: 2, passed: 1 });
   });
+
+  it("caps unfinished attempts at 3 and records events", async () => {
+    for (let i = 0; i < 3; i++) expect((await call("get_challenge", { challenge_id: "roman-numerals" })).attempt_id).toBeTruthy();
+    const blocked = await call("get_challenge", { challenge_id: "roman-numerals" });
+    expect(blocked.isError).toBe(true);
+    expect(blocked.error).toContain("unfinished");
+    const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("name", "challenge_submitted");
+    expect(count).toBe(2);
+  });
 });

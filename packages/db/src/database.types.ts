@@ -194,6 +194,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"rate_limits": {
+                  Row: {
+                    "hits": number,"key": string,"window_start": string
+                  }
+                  Insert: {
+                    "hits"?: number,"key": string,"window_start": string
+                  }
+                  Update: {
+                    "hits"?: number,"key"?: string,"window_start"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 }
           }
           Views: {
@@ -212,6 +225,9 @@ isOneToOne: false
                            },
 "profile_card":
 { Args: { "p_username": string }; Returns: Json
+                           },
+"rate_limit_hit":
+{ Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean
                            }
           }
           Enums: {

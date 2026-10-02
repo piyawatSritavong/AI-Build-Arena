@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext, siteOrigin } from "@/lib/safe-next";
+import { track } from "@/lib/track";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -9,8 +10,11 @@ export async function GET(request: NextRequest) {
   const next = safeNext(searchParams.get("next"));
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      await track("signed_in", data.user.id, { new_user: Date.now() - new Date(data.user.created_at).getTime() < 60_000 });
+      return NextResponse.redirect(`${origin}${next}`);
+    }
   }
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

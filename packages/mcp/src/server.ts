@@ -9,6 +9,9 @@ export interface ArenaContext {
   userId: string;
 }
 
+const ATTEMPTS_PER_HOUR = 30;
+const MAX_OPEN_ATTEMPTS = 3;
+
 const json = (data: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] });
 const fail = (message: string) => ({ ...json({ error: message }), isError: true });
 
@@ -18,6 +21,11 @@ function parseAnswer(raw: string): unknown {
   } catch {
     return raw;
   }
+}
+
+/** Product event mirror (week-2 metrics). Never blocks the tool call. */
+async function track(db: SupabaseClient<Database>, userId: string, name: string, props: Record<string, string | number | boolean>) {
+  await db.from("events").insert({ user_id: userId, name, props }).then(() => undefined, () => undefined);
 }
 
 export function createArenaMcpServer({ db, userId }: ArenaContext) {
@@ -50,6 +58,15 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
     },
     async ({ challenge_id }) => {
       const def = getChallenge(challenge_id);
+      const { count: open } = await db
+        .from("attempts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "issued")
+        .gt("expires_at", new Date().toISOString());
+      if ((open ?? 0) >= MAX_OPEN_ATTEMPTS) return fail(`You have ${open} unfinished attempts. Submit them (or let them expire) before starting another.`);
+      const { data: allowed } = await db.rpc("rate_limit_hit", { p_key: `attempts:${userId}`, p_window_seconds: 3600, p_max: ATTEMPTS_PER_HOUR });
+      if (!allowed) return fail(`Limit of ${ATTEMPTS_PER_HOUR} new attempts per hour reached. Try again later.`);
       const { data: row } = await db.from("challenges").select("time_limit_seconds, is_active").eq("id", challenge_id).maybeSingle();
       if (!def || !row?.is_active) return fail(`Unknown challenge "${challenge_id}".`);
 
@@ -71,6 +88,7 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
         .select("id")
         .single();
       if (error) return fail("Could not start attempt.");
+      await track(db, userId, "challenge_started", { challenge_id });
 
       return json({
         attempt_id: attempt.id,
@@ -139,6 +157,7 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
         .eq("status", "issued")
         .select("id");
       if (!updated?.length) return fail("Attempt was already submitted.");
+      await track(db, userId, "challenge_submitted", { challenge_id: def.id, correct: result.correct, score, has_lift: lift !== undefined });
 
       return json({
         correct: result.correct,

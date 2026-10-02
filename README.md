@@ -29,3 +29,8 @@ E2E (app running on :3000 + local Supabase): `pnpm build && pnpm --filter @arena
 ## Loadout Doctor & Trend Check
 - `packages/loadout`: browser-side parsers (Claude/Cursor/VS Code JSON configs, Claude Code settings plugins/hooks, Codex TOML, plain lists), ~50-entry Gear Registry, analyzer (redundant / built-in duplicate / bloated / security-risk), editorial v0 trend ratings. `pnpm --filter @arena/loadout sync` upserts `public.gear_registry`.
 - `/doctor` parses in the browser; only the report (gear names + findings, never secret values) is saved, on request. `/trend` is a no-signup 60s checklist; share cards carry counts only.
+
+## Limits, analytics, local login
+- Rate limits (Postgres fixed window, `rate_limit_hit`): `/api/mcp` 120 req/min per IP, 60 req/min per user; 30 new attempts/hour; max 3 unfinished attempts.
+- Events: server-side funnel events go to `public.events` (`signed_in`, `build_saved`, `token_created`, `challenge_started`, `challenge_submitted`, `doctor_saved`, `pro_waitlist_joined`) and to PostHog when `NEXT_PUBLIC_POSTHOG_KEY` is set (client: cookieless, no autocapture, no recordings).
+- Local testing without GitHub OAuth: start the app with `ARENA_DEV_LOGIN=1` and open `http://localhost:3000/auth/dev-login?user=alice&next=/me`. 404 unless the flag is set and the host is localhost. Never set it in production.

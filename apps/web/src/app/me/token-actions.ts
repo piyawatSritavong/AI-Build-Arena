@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { generateApiToken } from "@arena/mcp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { track } from "@/lib/track";
 
 const MAX_ACTIVE_TOKENS = 5;
 
@@ -23,6 +24,7 @@ export async function createToken(_prev: TokenState, formData: FormData): Promis
     .from("api_tokens")
     .insert({ user_id: auth.user.id, name, token_prefix: prefix, token_hash: hash });
   if (error) return { error: "Could not create token." };
+  await track("token_created", auth.user.id);
   revalidatePath("/me");
   return { token: raw };
 }

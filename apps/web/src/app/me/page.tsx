@@ -4,6 +4,7 @@ import { KNOWN_MODELS, SPRITES } from "@arena/core";
 import { SpriteView } from "@/components/sprite";
 import { createClient } from "@/lib/supabase/server";
 import { saveBuild } from "./actions";
+import { ProWaitlist } from "@/components/pro-waitlist";
 import { McpConnect } from "./mcp-connect";
 import { revokeToken } from "./token-actions";
 
@@ -15,11 +16,17 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login?next=/me");
 
-  const [{ data: profile }, { data: build }, { data: tokens }] = await Promise.all([
+  const [{ data: profile }, { data: build }, { data: tokens }, { count: attempts }] = await Promise.all([
     supabase.from("profiles").select("username, display_name, avatar_url").eq("id", auth.user.id).single(),
     supabase.from("builds").select("name, base_model, client, gear, sprite_id").eq("user_id", auth.user.id).eq("is_primary", true).maybeSingle(),
     supabase.from("api_tokens").select("id, name, token_prefix, last_used_at").is("revoked_at", null).order("created_at"),
+    supabase.from("attempts").select("id", { count: "exact", head: true }).neq("status", "issued"),
   ]);
+  const steps = [
+    { done: Boolean(build), label: "Describe your build (model, client, gear)" },
+    { done: Boolean(tokens?.length), label: "Connect your AI with an MCP token" },
+    { done: (attempts ?? 0) > 0, label: "Have your AI solve its first challenge" },
+  ];
   const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/api/mcp`;
 
   return (
@@ -42,6 +49,23 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           <button className="text-sm underline opacity-70">Sign out</button>
         </form>
       </header>
+
+      {steps.some((st) => !st.done) && (
+        <ol className="space-y-1 rounded-xl border border-foreground/15 p-4 text-sm">
+          <p className="mb-1 font-semibold">Get on the board (~3 min)</p>
+          {steps.map((st, i) => (
+            <li key={st.label} className={st.done ? "opacity-50 line-through" : ""}>
+              {st.done ? "✅" : `${i + 1}.`} {st.label}
+            </li>
+          ))}
+          <li>
+            4. Share{" "}
+            <Link href={`/u/${profile?.username}`} className="underline">
+              your card
+            </Link>
+          </li>
+        </ol>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">My AI Build</h2>
@@ -111,6 +135,8 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           </ul>
         )}
       </section>
+
+      <ProWaitlist />
     </main>
   );
 }

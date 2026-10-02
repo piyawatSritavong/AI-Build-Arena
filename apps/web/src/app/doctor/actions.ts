@@ -2,6 +2,7 @@
 
 import type { LoadoutFinding } from "@arena/core";
 import { createClient } from "@/lib/supabase/server";
+import { track } from "@/lib/track";
 
 const MAX_BYTES = 20_000;
 
@@ -18,5 +19,7 @@ export async function saveScan(summary: Record<string, unknown>, findings: Loado
     summary: JSON.parse(JSON.stringify(summary)),
     findings: JSON.parse(JSON.stringify(findings.slice(0, 100))),
   });
-  return error ? { ok: false, error: "Could not save." } : { ok: true };
+  if (error) return { ok: false, error: "Could not save." };
+  await track("doctor_saved", auth.user.id, { findings: findings.length });
+  return { ok: true };
 }
