@@ -1,0 +1,14 @@
+{
+  "name": "@arena/loadout",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "sync": "tsx --env-file-if-exists=../../apps/web/.env.local scripts/sync.ts"
+  },
+  "dependencies": { "@arena/core": "workspace:*" },
+  "devDependencies": { "@arena/db": "workspace:*", "@supabase/supabase-js": "^2", "@types/node": "^24", "tsx": "^4.23.15", "typescript": "^5", "vitest": "^5.0.3" }
+}

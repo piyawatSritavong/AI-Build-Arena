@@ -25,3 +25,7 @@ E2E (app running on :3000 + local Supabase): `pnpm build && pnpm --filter @arena
 ## Challenges & baselines
 - Registry in `packages/challenges/src` (10 Global + 5 Thai) is the source of truth; `pnpm --filter @arena/challenges sync` upserts `public.challenges` (also run by `pnpm db:reset`, and once against prod at deploy).
 - Baselines (vanilla model, no tools, single shot) for Lift: `pnpm --filter @arena/challenges baselines -- --models claude-opus-5-5,claude-sonnet-5-5,claude-haiku-4-5 --runs 3`. Needs `ANTHROPIC_API_KEY`; costs real API spend. `--dry-run` exercises the pipeline for free.
+
+## Loadout Doctor & Trend Check
+- `packages/loadout`: browser-side parsers (Claude/Cursor/VS Code JSON configs, Claude Code settings plugins/hooks, Codex TOML, plain lists), ~50-entry Gear Registry, analyzer (redundant / built-in duplicate / bloated / security-risk), editorial v0 trend ratings. `pnpm --filter @arena/loadout sync` upserts `public.gear_registry`.
+- `/doctor` parses in the browser; only the report (gear names + findings, never secret values) is saved, on request. `/trend` is a no-signup 60s checklist; share cards carry counts only.

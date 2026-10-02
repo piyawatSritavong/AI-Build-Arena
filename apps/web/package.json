@@ -13,6 +13,7 @@
     "@arena/challenges": "workspace:^",
     "@arena/core": "workspace:*",
     "@arena/db": "workspace:*",
+    "@arena/loadout": "workspace:^",
     "@arena/mcp": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "@supabase/ssr": "^0.12.7",

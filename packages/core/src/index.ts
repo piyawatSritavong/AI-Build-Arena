@@ -54,18 +54,24 @@ export interface DetectedGear {
   kind: GearKind;
   registryId?: string; // gear_registry.id when matched
   source: string; // which config file/section it came from
+  /** Text used for registry matching (name + command + args/url). Never contains env values. */
+  haystack?: string;
 }
 export type FindingType = "redundant" | "conflicting" | "bloated" | "unused" | "security-risk";
 export interface LoadoutFinding {
   type: FindingType;
   gear: string[];
   message: string;
-  evidence: "registry" | "heuristic" | "ablation";
+  evidence: "registry" | "heuristic" | "ablation" | "editorial";
+}
+export interface ParseResult {
+  gear: DetectedGear[];
+  findings: LoadoutFinding[]; // issues spotted while parsing (e.g. hardcoded secrets); never include secret values
 }
 export interface LoadoutParser {
-  id: string; // e.g. "claude-code-settings", "mcp-json"
+  id: string; // e.g. "json-config", "codex-toml", "list"
   canParse(text: string, filename?: string): boolean;
-  parse(text: string, filename?: string): DetectedGear[];
+  parse(text: string, filename?: string): ParseResult;
 }
 
 /** Base models selectable on a build; baselines are measured per id so Lift lines up. */
