@@ -12,12 +12,14 @@ export default async function Home() {
       <p className="text-lg opacity-80">
         The Strava of AI builds. Measure your setup, see your Lift over the vanilla model, and find your place in the tribe.
       </p>
-      <Link
-        href={signedIn ? "/me" : "/login"}
-        className="self-start rounded-md bg-foreground px-5 py-2.5 text-background hover:opacity-90"
-      >
-        {signedIn ? "Go to my build" : "Sign in with GitHub"}
-      </Link>
+      <div className="flex gap-3">
+        <Link href={signedIn ? "/me" : "/login"} className="rounded-md bg-foreground px-5 py-2.5 text-background hover:opacity-90">
+          {signedIn ? "Go to my build" : "Sign in with GitHub"}
+        </Link>
+        <Link href="/leaderboard" className="rounded-md border border-foreground/20 px-5 py-2.5">
+          Leaderboard
+        </Link>
+      </div>
     </main>
   );
 }

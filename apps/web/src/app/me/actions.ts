@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { KNOWN_MODELS } from "@arena/core";
+import { KNOWN_MODELS, SPRITES } from "@arena/core";
 import { createClient } from "@/lib/supabase/server";
 
 const CLIENTS = ["claude-code", "codex", "cursor", "chatgpt", "claude-desktop", "other"] as const;
@@ -24,7 +24,9 @@ export async function saveBuild(formData: FormData) {
     .slice(0, 50);
   if (!name || !baseModel) redirect("/me?error=missing");
 
-  const row = { name, base_model: baseModel, client, gear };
+  const spriteRaw = String(formData.get("sprite_id") ?? "");
+  const sprite_id = SPRITES.some((s) => s.id === spriteRaw) ? spriteRaw : "starter-1";
+  const row = { name, base_model: baseModel, client, gear, sprite_id };
   const { data: existing } = await supabase
     .from("builds")
     .select("id")

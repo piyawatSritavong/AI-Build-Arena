@@ -200,7 +200,19 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "best_passes":
+{ Args: { "p_league"?: Database["public"]['Enums']["league"] }; Returns: {
+              "category": string,"challenge_id": string,"league": Database["public"]['Enums']["league"],"lift": number,"score": number,"user_id": string
+            }[]
+                           },
+"leaderboard":
+{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_limit"?: number }; Returns: {
+              "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"passed": number,"rank": number,"sprite_id": string,"total_score": number,"username": string
+            }[]
+                           },
+"profile_card":
+{ Args: { "p_username": string }; Returns: Json
+                           }
           }
           Enums: {
             "attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai"
