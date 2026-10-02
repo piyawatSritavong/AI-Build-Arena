@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@arena/core", "@arena/challenges", "@arena/mcp"],
 };
 
 export default nextConfig;

@@ -12,3 +12,12 @@ Schema change: add a migration in `supabase/migrations`, `pnpm db:reset`, `pnpm 
 Checks: `pnpm typecheck && pnpm lint && pnpm build`.
 
 Cloud (Vercel + Supabase) is created only at deploy time.
+
+## Remote MCP (`/api/mcp`)
+Stateless Streamable HTTP; auth = per-user API token (`Authorization: Bearer aba_…`, created at `/me`; only its SHA-256 is stored). Tools: `list_challenges`, `get_challenge` (starts a timed attempt with a fresh seeded input), `submit_answer` (one submission per attempt; score + Lift vs baseline), `my_stats`.
+
+- Claude Code: `claude mcp add --transport http arena http://localhost:3000/api/mcp --header "Authorization: Bearer <token>"`
+- Claude Desktop (local): `claude_desktop_config.json` → `{"mcpServers":{"arena":{"command":"npx","args":["mcp-remote","http://localhost:3000/api/mcp","--header","Authorization: Bearer <token>"]}}}`. Custom connectors in Settings need a public HTTPS URL (after deploy).
+- ChatGPT: remote MCP connectors need a public HTTPS URL and only offer OAuth / no-auth, so `?token=` is the interim fallback; real fix = MCP OAuth (scale path).
+
+E2E (app running on :3000 + local Supabase): `pnpm build && pnpm --filter @arena/web start` then `pnpm test:e2e`.

@@ -1,0 +1,10 @@
+{
+  "name": "@arena/challenges",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p .", "test": "vitest run" },
+  "dependencies": { "@arena/core": "workspace:*" },
+  "devDependencies": { "typescript": "^5", "vitest": "^5.0.3" }
+}

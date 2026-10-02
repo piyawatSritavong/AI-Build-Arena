@@ -8,6 +8,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:e2e": "ARENA_E2E_URL=http://localhost:3000 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SECRET_KEY=sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz pnpm --filter @arena/mcp test",
     "db:start": "supabase start -x studio,imgproxy,vector,logflare,edge-runtime,realtime,storage-api,supavisor",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

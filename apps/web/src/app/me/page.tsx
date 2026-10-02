@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { saveBuild } from "./actions";
+import { McpConnect } from "./mcp-connect";
+import { revokeToken } from "./token-actions";
 
 const input = "w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2";
 
@@ -10,10 +12,12 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login?next=/me");
 
-  const [{ data: profile }, { data: build }] = await Promise.all([
+  const [{ data: profile }, { data: build }, { data: tokens }] = await Promise.all([
     supabase.from("profiles").select("username, display_name, avatar_url").eq("id", auth.user.id).single(),
     supabase.from("builds").select("name, base_model, client, gear").eq("user_id", auth.user.id).eq("is_primary", true).maybeSingle(),
+    supabase.from("api_tokens").select("id, name, token_prefix, last_used_at").is("revoked_at", null).order("created_at"),
   ]);
+  const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/api/mcp`;
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 space-y-8 px-4 py-10">
@@ -61,6 +65,28 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           </label>
           <button className="rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">Save build</button>
         </form>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Connect your AI (MCP)</h2>
+        <p className="text-sm opacity-80">Add the Arena as a remote MCP server, then ask your AI to list challenges and solve one.</p>
+        <McpConnect mcpUrl={mcpUrl} />
+        {!!tokens?.length && (
+          <ul className="divide-y divide-foreground/10 text-sm">
+            {tokens.map((t) => (
+              <li key={t.id} className="flex items-center justify-between py-2">
+                <span>
+                  {t.name} <code className="opacity-60">{t.token_prefix}…</code>
+                  <span className="ml-2 opacity-60">{t.last_used_at ? `used ${new Date(t.last_used_at).toLocaleDateString()}` : "never used"}</span>
+                </span>
+                <form action={revokeToken}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <button className="text-red-500 underline">Revoke</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
