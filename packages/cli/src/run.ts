@@ -59,6 +59,14 @@ export interface RunRow {
   error?: string;
 }
 
+// Claude Desktop alone is not enough: its built-in Claude Code only runs inside the app.
+const INSTALL_HINT = [
+  "Claude Code (the terminal version) was not found. `setuptier run` drives it to solve challenges on your machine.",
+  "Claude Desktop alone is not enough: its built-in Claude Code only runs inside the app.",
+  "Install it (same Claude account, no extra cost on Pro/Max):  curl -fsSL https://claude.ai/install.sh | bash",
+  "then run `claude` once to sign in. Or connect Claude Desktop through MCP instead (Duo division): https://setuptier.com/me",
+].join("\n");
+
 export async function listChallenges(creds: Credentials) {
   const r = await api<{ challenges: { id: string; category: string }[] }>(baseUrl(creds), "/api/cli/challenges");
   return r.challenges.filter((c) => c.category !== "memory").map((c) => c.id); // Memory Fitness has its own command
@@ -66,8 +74,8 @@ export async function listChallenges(creds: Credentials) {
 
 export async function preflight() {
   const version = await agentVersion();
-  if (!version) throw new Error("Claude Code was not found. Install it (https://claude.com/claude-code) or set SETUPTIER_AGENT_CMD.");
-  if (!(await agentLoggedIn())) throw new Error("Claude Code is not signed in. Run `claude` once and sign in, then try again.");
+  if (!version) throw new Error(INSTALL_HINT);
+  if (!(await agentLoggedIn())) throw new Error("Claude Code is not signed in. Run `claude` in a terminal and sign in with your Claude account, then try again.");
   return `claude-code/${version}`;
 }
 

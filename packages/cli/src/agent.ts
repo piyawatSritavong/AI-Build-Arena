@@ -129,7 +129,9 @@ export async function pingAgent(cwd: string): Promise<{ tokens: number }> {
   }
   const text = `${j.result ?? ""} ${r.stderr}`;
   if (j.api_error_status === 401 || /OAuth|authenticat|log ?in|\/login/i.test(j.is_error || r.code !== 0 ? text : "")) {
-    throw new AgentAuthError("Claude Code's sign-in has expired. Run `claude` once in a terminal (type /login if it asks), then try again. Nothing was started.");
+    throw new AgentAuthError(
+      "Claude Code's sign-in has expired. Run `claude` in a terminal and type /login (Claude Desktop's own sign-in does not carry over), then try again. Nothing was started.",
+    );
   }
   if (r.code !== 0 && !r.stdout.trim()) throw new Error(`Claude Code did not start: ${(r.stderr.trim() || `exit code ${r.code}`).slice(0, 300)}`);
   return { tokens: parseAgentJson(r.stdout).tokens };
