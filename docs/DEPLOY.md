@@ -33,6 +33,8 @@ A Supabase project bills compute while it exists, so create it on deploy day, no
    | `SUPABASE_SECRET_KEY` | secret key (mark Sensitive) |
    | `NEXT_PUBLIC_SITE_URL` | `https://<domain>`: drives OAuth redirects and absolute OG image URLs |
    | `NEXT_PUBLIC_POSTHOG_KEY` / `_HOST` | optional |
+   | `GOOGLE_SITE_VERIFICATION` | optional: token from Google Search Console (HTML tag method) |
+   | `BING_SITE_VERIFICATION` | optional: `msvalidate.01` token from Bing Webmaster Tools |
 
    Never set `ARENA_DEV_LOGIN` in any Vercel environment.
 3. Domain: add `<domain>` in Vercel, then set the DNS records Vercel shows at the registrar (z.com).
@@ -44,6 +46,12 @@ A Supabase project bills compute while it exists, so create it on deploy day, no
 - Paste `https://<domain>/u/<you>` into X / Facebook sharing debugger: the OG card renders.
 - `curl -I https://<domain>` shows the security headers.
 - MCP without a token returns 401; more than 120 requests/min from one IP returns 429.
+
+## 4. Search engines (SEO / GEO / AEO)
+- Built in: per-page titles, descriptions and canonicals, Open Graph + X cards, `robots.txt` (AI crawlers allowed, `/api/` and `/auth/` blocked, `/api/og/` open for share images), `sitemap.xml` (static pages + ranked profile cards, refreshed hourly), `llms.txt`, web manifest, icons, and JSON-LD (Organization, WebSite, WebApplication, FAQPage, ItemList, ProfilePage).
+- `NEXT_PUBLIC_SITE_URL` must be the final domain before building: canonicals, sitemap and robots use it. Redeploy after a domain change.
+- Google Search Console and Bing Webmaster Tools: verify (env vars above), then submit `https://<domain>/sitemap.xml`.
+- Check: Google Rich Results Test on `/` (FAQ) and a ranked `/u/<name>`; X / Facebook share debuggers on `/` and a card.
 
 ## Rollback
 Vercel → Deployments → promote the previous deployment. Schema changes are forward-only: write a new migration to undo.

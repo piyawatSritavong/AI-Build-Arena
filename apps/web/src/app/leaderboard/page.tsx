@@ -6,8 +6,20 @@ import { BackLink } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
 import { getViewer } from "@/lib/session";
+import { JsonLd } from "@/components/json-ld";
+import { absoluteUrl, pageMeta } from "@/lib/site";
 
-export const metadata = { title: "Leaderboard · SetupTier" };
+const LEAGUE_META = {
+  overall: { title: "AI Setup Leaderboard", description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the vanilla model." },
+  global: { title: "Global League Leaderboard", description: "Global League rankings of AI coding setups on output-verified logic, algorithm and data challenges, by score and Lift." },
+  thai: { title: "Thai League Leaderboard", description: "Thai League rankings of AI setups on Thai baht text, Buddhist-era dates, Thai ID checksums, addresses and VAT/withholding tax challenges." },
+};
+
+export async function generateMetadata({ searchParams }: PageProps<"/leaderboard">) {
+  const { league } = await searchParams;
+  const key = league === "global" || league === "thai" ? league : "overall";
+  return pageMeta({ ...LEAGUE_META[key], path: key === "overall" ? "/leaderboard" : `/leaderboard?league=${key}` });
+}
 
 const TABS = [
   { league: undefined, label: "Overall" },
@@ -37,7 +49,18 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
       }
     >
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Leaderboard</h1>
+      <h1 className="text-2xl font-semibold">{LEAGUE_META[league ?? "overall"].title}</h1>
+      {!!rows?.length && (
+        <JsonLd
+          data={{
+            "@type": "ItemList",
+            name: LEAGUE_META[league ?? "overall"].title,
+            itemListOrder: "https://schema.org/ItemListOrderDescending",
+            numberOfItems: rows.length,
+            itemListElement: rows.slice(0, 50).map((r) => ({ "@type": "ListItem", position: r.rank, name: r.display_name ?? r.username, url: absoluteUrl(`/u/${r.username}`) })),
+          }}
+        />
+      )}
       <nav className="flex gap-2 text-sm">
         {TABS.map((t) => (
           <Link

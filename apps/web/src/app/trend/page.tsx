@@ -1,7 +1,12 @@
 import { GEAR } from "@arena/loadout";
 import { TrendClient } from "./trend-client";
+import { pageMeta } from "@/lib/site";
 
-export const metadata = { title: "Trend Check · SetupTier", description: "Can't keep up with AI trends? Maybe you're carrying too much. 60-second check, no signup." };
+export const metadata = pageMeta({
+  title: "AI Tools Trend Check (60 seconds, no signup)",
+  description: "Can't keep up with AI trends? Tick the AI coding tools, MCP servers and skills you use and see which are proven, which are hype and which are fading. 60 seconds, no signup.",
+  path: "/trend",
+});
 
 const KNOWN = new Set(GEAR.map((g) => g.id));
 

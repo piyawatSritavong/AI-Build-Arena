@@ -2,6 +2,9 @@ import { BackButton } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary } from "@/components/ui";
 import { signInWithGitHub } from "./actions";
+import { pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: "Sign in", description: "Sign in to SetupTier with GitHub to measure your AI setup.", path: "/login", noindex: true });
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next, error } = await searchParams;

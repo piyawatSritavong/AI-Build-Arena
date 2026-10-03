@@ -10,6 +10,9 @@ import { revokeToken } from "./token-actions";
 import { BackLink } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
+import { pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta({ title: "My build", path: "/me", noindex: true });
 
 const input = "w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2";
 

@@ -5,16 +5,26 @@ import { ArenaCard } from "@/components/arena-card";
 import { BackButton } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
-import { getProfileCard } from "@/lib/cards";
+import { getProfileCard, rankLabel, signed } from "@/lib/cards";
 import { getViewer } from "@/lib/session";
+import { JsonLd } from "@/components/json-ld";
+import { absoluteUrl, pageMeta } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/u/[username]">): Promise<Metadata> {
   const { username } = await params;
   const card = await getProfileCard(username);
-  if (!card) return { title: "Not found · SetupTier" };
-  const title = `${card.display_name ?? card.username}'s AI Build · SetupTier`;
-  const description = `${card.passed} challenges passed · avg Lift ${card.avg_lift ?? "—"} · ${card.build?.base_model ?? "no build"}`;
-  return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
+  if (!card) return { title: "Builder not found", robots: { index: false } };
+  const name = card.display_name ?? card.username;
+  return pageMeta({
+    title: `${name}'s AI setup (@${card.username})`,
+    description: card.passed
+      ? `${name}'s AI coding setup on SetupTier: ${card.build?.base_model ?? "unknown model"}, ${card.passed} challenges passed, average Lift ${signed(card.avg_lift)}, rank ${rankLabel(card)}.`
+      : `${name}'s AI coding setup on SetupTier${card.build?.base_model ? ` (${card.build.base_model})` : ""}. No challenges passed yet.`,
+    path: `/u/${card.username}`,
+    images: [{ url: `/u/${card.username}/opengraph-image`, width: 1200, height: 630, alt: `${name}'s SetupTier card` }],
+    // Cards with no passed challenge are thin pages: shareable, not indexed.
+    noindex: card.passed === 0,
+  });
 }
 
 export default async function ProfilePage({ params }: PageProps<"/u/[username]">) {
@@ -54,6 +64,21 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
         )
       }
     >
+      <JsonLd
+        data={{
+          "@type": "ProfilePage",
+          url: absoluteUrl(`/u/${card.username}`),
+          mainEntity: {
+            "@type": "Person",
+            name: card.display_name ?? card.username,
+            alternateName: `@${card.username}`,
+            url: absoluteUrl(`/u/${card.username}`),
+            ...(card.avatar_url && { image: card.avatar_url }),
+            sameAs: [`https://github.com/${card.username}`],
+          },
+        }}
+      />
+      <h1 className="sr-only">{`${card.display_name ?? card.username}'s AI setup on SetupTier`}</h1>
       <div className="flex justify-center">
         <ArenaCard card={card} />
       </div>

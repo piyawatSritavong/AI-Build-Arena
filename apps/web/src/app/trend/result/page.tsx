@@ -4,12 +4,18 @@ import { BackLink } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
 import { readTrendStats, statsQuery } from "./stats";
+import { pageMeta } from "@/lib/site";
 
 export async function generateMetadata({ searchParams }: PageProps<"/trend/result">): Promise<Metadata> {
   const s = readTrendStats(await searchParams);
-  const title = `Meta Sync ${s.sync}% · SetupTier Trend Check`;
-  const images = [{ url: `/api/og/trend?${statsQuery(s)}`, width: 1200, height: 630 }];
-  return { title, openGraph: { title, images }, twitter: { card: "summary_large_image", title, images } };
+  // Shared result cards: rich previews on social, but one URL per stats combo, so keep them out of the index.
+  return pageMeta({
+    title: `Meta Sync ${s.sync}% · Trend Check`,
+    description: `This AI setup is ${s.sync}% in sync with the current meta, carrying ${s.hype} hype and ${s.fading} fading tools. Check yours in 60 seconds.`,
+    path: `/trend/result?${statsQuery(s)}`,
+    images: [{ url: `/api/og/trend?${statsQuery(s)}`, width: 1200, height: 630 }],
+    noindex: true,
+  });
 }
 
 export default async function TrendResultPage({ searchParams }: PageProps<"/trend/result">) {

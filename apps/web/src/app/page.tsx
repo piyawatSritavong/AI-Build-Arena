@@ -3,6 +3,11 @@ import { SPRITES } from "@arena/core";
 import { SpriteView } from "@/components/sprite";
 import { ProWaitlist } from "@/components/pro-waitlist";
 import { createClient } from "@/lib/supabase/server";
+import { JsonLd } from "@/components/json-ld";
+import { FAQ } from "@/lib/faq";
+import { pageMeta, SITE } from "@/lib/site";
+
+export const metadata = pageMeta({ absoluteTitle: `${SITE.name}: ${SITE.tagline}`, path: "/" });
 
 const STEPS = [
   ["Sign in & describe your build", "Base model, client and gear: Claude Code, Codex, Cursor, MCPs, skills, hooks."],
@@ -24,6 +29,26 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-16 px-4 py-16">
+      <JsonLd
+        data={{
+          "@graph": [
+            {
+              "@type": "WebApplication",
+              name: SITE.name,
+              url: SITE.url,
+              description: SITE.description,
+              applicationCategory: "DeveloperApplication",
+              operatingSystem: "Any (web browser)",
+              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+              featureList: FEATURES.map(([, title, body]) => `${title}: ${body}`),
+            },
+            {
+              "@type": "FAQPage",
+              mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+            },
+          ],
+        }}
+      />
       <section className="space-y-6">
         <p className="font-mono text-sm font-bold tracking-[0.3em] uppercase opacity-70">SetupTier</p>
         <div className="flex gap-1">
@@ -50,7 +75,7 @@ export default async function Home() {
         {STEPS.map(([title, body], i) => (
           <div key={title} className="space-y-1">
             <p className="text-sm font-semibold opacity-60">Step {i + 1}</p>
-            <p className="font-semibold">{title}</p>
+            <h2 className="font-semibold">{title}</h2>
             <p className="text-sm opacity-75">{body}</p>
           </div>
         ))}
@@ -59,10 +84,22 @@ export default async function Home() {
       <section className="grid gap-4 sm:grid-cols-2">
         {FEATURES.map(([href, title, body]) => (
           <Link key={title} href={href} className="space-y-1 rounded-xl border border-foreground/10 p-5 hover:border-foreground/30">
-            <p className="font-semibold">{title} →</p>
+            <h2 className="font-semibold">{title} →</h2>
             <p className="text-sm opacity-75">{body}</p>
           </Link>
         ))}
+      </section>
+
+      <section aria-labelledby="faq" className="space-y-4">
+        <h2 id="faq" className="text-2xl font-semibold">FAQ</h2>
+        <div className="divide-y divide-foreground/10 rounded-xl border border-foreground/10">
+          {FAQ.map((f) => (
+            <details key={f.q} className="group p-5">
+              <summary className="cursor-pointer list-none font-semibold after:float-right after:content-['+'] group-open:after:content-['−']">{f.q}</summary>
+              <p className="mt-2 text-sm opacity-80">{f.a}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <section className="max-w-xl space-y-3">
