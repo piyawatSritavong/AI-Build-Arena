@@ -16,6 +16,20 @@ export interface AgentResult {
   turns: number;
   durationMs: number;
   error?: string;
+  /** Set when the run failed for a reason outside the challenge: the attempt is abandoned, not failed. */
+  failure?: AgentFailure;
+}
+
+/** Why an agent run broke down (the server's abandon reasons). Anything but "timeout" stops the whole suite. */
+export type AgentFailure = "usage_limit" | "rate_limit" | "auth" | "agent_error" | "timeout";
+
+/** Reads Claude Code's error text / API status. Unknown errors are "agent_error" (also a stop: better safe). */
+export function classifyFailure(text: string, apiStatus?: number): Exclude<AgentFailure, "timeout"> {
+  if (apiStatus === 401 || /OAuth|authenticat|\/login|not logged in|log ?in again/i.test(text)) return "auth";
+  // Claude plan limits: "You've hit your session limit · resets 1:50am", "Claude AI usage limit reached", weekly limit.
+  if (/(session|usage|weekly|daily|monthly) limit|hit your limit|limit reached|out of (extra )?usage|credit balance/i.test(text)) return "usage_limit";
+  if (apiStatus === 429 || apiStatus === 529 || /rate.?limit|too many requests|overloaded|\b(429|529)\b/i.test(text)) return "rate_limit";
+  return "agent_error";
 }
 
 const agentCmd = () => process.env.SETUPTIER_AGENT_CMD ?? "claude";
@@ -72,31 +86,36 @@ function exec(args: string[], prompt: string, cwd: string, timeoutMs: number) {
   });
 }
 
-export function parseAgentJson(stdout: string): Omit<AgentResult, "answer" | "durationMs"> {
+export function parseAgentJson(stdout: string): Omit<AgentResult, "answer" | "durationMs"> & { apiErrorStatus?: number } {
   let j: ClaudeJson = {};
   try {
     j = JSON.parse(stdout.trim().split("\n").filter(Boolean).at(-1) ?? "{}") as ClaudeJson;
   } catch {
-    return { tokens: 0, model: null, costUsd: null, turns: 0, error: "Agent output was not JSON." };
+    return { tokens: 0, model: null, costUsd: null, turns: 0, error: "Agent output was not JSON.", failure: "agent_error" };
   }
   const u = j.usage ?? {};
   const tokens = (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
   const model = Object.entries(j.modelUsage ?? {}).sort((a, b) => (b[1].outputTokens ?? 0) - (a[1].outputTokens ?? 0))[0]?.[0] ?? null;
-  return { tokens, model, costUsd: j.total_cost_usd ?? null, turns: j.num_turns ?? 0, error: j.is_error ? (j.result ?? "Agent reported an error.").slice(0, 300) : undefined };
+  const error = j.is_error ? (j.result ?? "Agent reported an error.").slice(0, 300) : undefined;
+  return { tokens, model, costUsd: j.total_cost_usd ?? null, turns: j.num_turns ?? 0, error, failure: error ? classifyFailure(error, j.api_error_status) : undefined, apiErrorStatus: j.api_error_status };
 }
 
 export async function runAgent(opts: { variant: Variant; model?: string; cwd: string; prompt: string; timeoutMs: number }): Promise<AgentResult> {
   const started = Date.now();
   const r = await exec(agentArgs(opts.variant, opts.model), opts.prompt, opts.cwd, opts.timeoutMs);
-  const parsed = parseAgentJson(r.stdout);
+  const { apiErrorStatus, ...parsed } = parseAgentJson(r.stdout);
   let answer: string | null = null;
   try {
     answer = (await readFile(join(opts.cwd, "answer.json"), "utf8")).trim();
   } catch {
     // no answer written
   }
-  const error = r.timedOut ? "Timed out." : r.code !== 0 && !parsed.error ? (r.stderr.trim() || `Agent exited with code ${r.code}.`).slice(0, 300) : parsed.error;
-  return { ...parsed, answer, durationMs: Date.now() - started, error };
+  if (r.timedOut) return { ...parsed, answer, durationMs: Date.now() - started, error: "Timed out.", failure: "timeout" };
+  if (r.code !== 0 && !parsed.error) {
+    const error = (r.stderr.trim() || `Agent exited with code ${r.code}.`).slice(0, 300);
+    return { ...parsed, answer, durationMs: Date.now() - started, error, failure: classifyFailure(`${error} ${r.stdout}`, apiErrorStatus) };
+  }
+  return { ...parsed, answer, durationMs: Date.now() - started };
 }
 
 export async function agentVersion(): Promise<string | null> {
@@ -128,10 +147,14 @@ export async function pingAgent(cwd: string): Promise<{ tokens: number }> {
     // not JSON: judged below
   }
   const text = `${j.result ?? ""} ${r.stderr}`;
-  if (j.api_error_status === 401 || /OAuth|authenticat|log ?in|\/login/i.test(j.is_error || r.code !== 0 ? text : "")) {
+  const failure = j.is_error || r.code !== 0 ? classifyFailure(text, j.api_error_status) : null;
+  if (failure === "auth") {
     throw new AgentAuthError(
       "Claude Code's sign-in has expired. Run `claude` in a terminal and type /login (Claude Desktop's own sign-in does not carry over), then try again. Nothing was started.",
     );
+  }
+  if (failure === "usage_limit" || failure === "rate_limit") {
+    throw new Error(`Claude Code cannot run right now (${failure === "usage_limit" ? "plan usage limit" : "rate limit"}): ${(j.result ?? r.stderr).trim().slice(0, 200)}. Try again once it resets. Nothing was started.`);
   }
   if (r.code !== 0 && !r.stdout.trim()) throw new Error(`Claude Code did not start: ${(r.stderr.trim() || `exit code ${r.code}`).slice(0, 300)}`);
   return { tokens: parseAgentJson(r.stdout).tokens };

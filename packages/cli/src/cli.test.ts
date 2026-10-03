@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@arena/db";
 import { scanMachine } from "./scan";
 import { runSuite, summarize } from "./run";
+import { classifyFailure } from "./agent";
 import { describeRounds, memoryRounds } from "./memory";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -61,6 +62,20 @@ describe("expired Claude Code sign-in", () => {
       delete process.env.SETUPTIER_AGENT_CMD;
       delete process.env.FAKE_AGENT_AUTH_EXPIRED;
     }
+  });
+});
+
+describe("classifyFailure", () => {
+  it("tells failures outside the challenge apart", () => {
+    expect(classifyFailure("You've hit your session limit · resets 1:50am")).toBe("usage_limit");
+    expect(classifyFailure("Claude AI usage limit reached|1759600000")).toBe("usage_limit");
+    expect(classifyFailure("You've hit your weekly limit")).toBe("usage_limit");
+    expect(classifyFailure("API Error: 429 rate_limit_error")).toBe("rate_limit");
+    expect(classifyFailure("API Error", 529)).toBe("rate_limit");
+    expect(classifyFailure("Overloaded")).toBe("rate_limit");
+    expect(classifyFailure("Failed to authenticate. API Error: 401 OAuth access token has expired.", 401)).toBe("auth");
+    expect(classifyFailure("Invalid API key · Please run /login")).toBe("auth");
+    expect(classifyFailure("Segmentation fault")).toBe("agent_error");
   });
 });
 
@@ -182,6 +197,43 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
       delete process.env.SETUPTIER_AGENT_CMD;
       delete process.env.FAKE_AGENT_LOG;
       await rm(log, { force: true });
+    }
+  });
+
+  it("abandons instead of failing when the plan's usage runs out, and stops the suite", async () => {
+    const start = (await (await post("/api/cli/device", { client_name: "e2e limit" })).json()) as { device_code: string; user_code: string };
+    await db.from("cli_device_codes").update({ user_id: userId, approved_at: new Date().toISOString() }).eq("user_code", start.user_code);
+    const { token } = (await (await post("/api/cli/token", { device_code: start.device_code })).json()) as { token: string };
+    const { data: before } = await db.from("profiles").select("trust_score").eq("id", userId).single();
+    const since = new Date().toISOString();
+    process.env.SETUPTIER_AGENT_CMD = fileURLToPath(new URL("../test-fixtures/fake-agent.mjs", import.meta.url));
+    const lines: string[] = [];
+    try {
+      process.env.FAKE_AGENT_SESSION_LIMIT = "1"; // the ping passes (it is checked separately), the first challenge run hits the limit
+      const r = await runSuite(
+        { url: url!, token, username: "cli-e2e" },
+        { challenges: ["sum-of-evens", "bracket-balance"], variants: ["stock"], runs: 3, mode: "practice", budgetTokens: 100_000, probe: false },
+        (l) => lines.push(l),
+      );
+      expect(r.rows).toHaveLength(1); // stopped after the first breakdown instead of failing the other 5 runs
+      expect(r.rows[0]).toMatchObject({ correct: null, score: null, abandoned: "usage_limit" });
+      expect(lines.join("\n")).toMatch(/abandoned \(usage_limit\)[\s\S]*Stopped: your Claude plan's usage limit/);
+      expect(summarize(r.rows)).toContain("1 run abandoned");
+
+      const { data: rows } = await db.from("attempts").select("id, status, abandon_reason, flags, score, tokens_measured").eq("user_id", userId).gte("issued_at", since);
+      expect(rows).toHaveLength(1);
+      expect(rows![0]).toMatchObject({ status: "abandoned", abandon_reason: "usage_limit", flags: [], score: null, tokens_measured: 300 });
+      const { data: after } = await db.from("profiles").select("trust_score").eq("id", userId).single();
+      expect(after!.trust_score).toBe(before!.trust_score); // no flag, no trust penalty
+
+      // Closed for good: no late submit, no second abandon; a bad reason is refused.
+      const id = rows![0]!.id;
+      expect((await post(`/api/cli/attempts/${id}/submit`, { answer: "42" }, token)).status).toBe(409);
+      expect((await post(`/api/cli/attempts/${id}/abandon`, { reason: "usage_limit" }, token)).status).toBe(409);
+      expect((await post(`/api/cli/attempts/${id}/abandon`, { reason: "bored" }, token)).status).toBe(400);
+    } finally {
+      delete process.env.SETUPTIER_AGENT_CMD;
+      delete process.env.FAKE_AGENT_SESSION_LIMIT;
     }
   });
 

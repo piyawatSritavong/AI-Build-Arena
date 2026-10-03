@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { wilsonLower, type Json } from "@arena/core";
 import { api, ApiError } from "./api";
-import { agentLoggedIn, agentVersion, pingAgent, probeStock, runAgent, type StockProbe, type Variant } from "./agent";
+import { agentLoggedIn, agentVersion, pingAgent, probeStock, runAgent, type AgentFailure, type StockProbe, type Variant } from "./agent";
 import type { Credentials } from "./config";
 import { baseUrl } from "./config";
 import { emptyDir, MEMORY_CHALLENGE, memoryWorkspace } from "./memory";
@@ -62,7 +62,15 @@ export interface RunRow {
   phase?: "learn" | "exam"; // Memory Fitness
   examDueAt?: string;
   error?: string;
+  abandoned?: AgentFailure; // the agent broke down for a reason outside the challenge: not counted
 }
+
+const STOP_HINT: Record<Exclude<AgentFailure, "timeout">, string> = {
+  usage_limit: "Stopped: your Claude plan's usage limit was hit. Nothing was counted for that run; run again after it resets.",
+  rate_limit: "Stopped: the Claude API is rate limiting or overloaded. Nothing was counted for that run; try again in a few minutes.",
+  auth: "Stopped: Claude Code's sign-in failed. Run `claude` and type /login, then try again. Nothing was counted for that run.",
+  agent_error: "Stopped: Claude Code failed outside the challenge (see the error above). Nothing was counted for that run.",
+};
 
 // Claude Desktop alone is not enough: its built-in Claude Code only runs inside the app.
 const INSTALL_HINT = [
@@ -142,13 +150,31 @@ export async function runSuite(
           const a = await runAgent({ variant, model, cwd: dir, prompt: PROMPT, timeoutMs: Math.max(30, started.time_limit_seconds - 15) * 1000 });
           spent += a.tokens;
           if (!model && a.model) model = a.model; // Stock must use the same model as Full
-          // Always submit (an empty answer fails) so no attempt is left open and blocking.
-          const s = await api<Submitted>(base, `/api/cli/attempts/${started.attempt_id}/submit`, {
-            token: creds.token,
-            body: { answer: a.answer ?? "", tokens: a.tokens, cost_usd: a.costUsd ?? undefined, model: a.model ?? model, client },
-          });
-          rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), challengeLift: s.challenge_lift, phase: started.phase, examDueAt: s.exam_due_at, error: a.error });
-          log(`${label} ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
+          const seconds = Math.round(a.durationMs / 1000);
+          // A usage/rate limit, dead sign-in or crash would break every later run too: stop the whole suite.
+          const fatal = a.failure !== undefined && a.failure !== "timeout";
+          if (a.answer === null && a.failure) {
+            // Not the challenge's fault: close the attempt as abandoned (no pass, no fail, no flag) instead of
+            // submitting an empty answer. If even that fails, the attempt simply expires on the server.
+            await api(base, `/api/cli/attempts/${started.attempt_id}/abandon`, {
+              token: creds.token,
+              body: { reason: a.failure, tokens: a.tokens, cost_usd: a.costUsd ?? undefined, model: a.model ?? model, client },
+            }).catch((e: unknown) => log(`${label} could not be closed (${e instanceof Error ? e.message : String(e)}); it will expire on its own.`));
+            rows.push({ challenge, variant, correct: null, score: null, tokens: a.tokens, seconds, phase: started.phase, error: a.error, abandoned: a.failure });
+            log(`${label} abandoned (${a.failure}): ${a.error ?? "no answer"}`);
+          } else {
+            // The agent finished (or wrote an answer before failing): an empty answer is a genuine fail.
+            const s = await api<Submitted>(base, `/api/cli/attempts/${started.attempt_id}/submit`, {
+              token: creds.token,
+              body: { answer: a.answer ?? "", tokens: a.tokens, cost_usd: a.costUsd ?? undefined, model: a.model ?? model, client },
+            });
+            rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds, challengeLift: s.challenge_lift, phase: started.phase, examDueAt: s.exam_due_at, error: a.error });
+            log(`${label} ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
+          }
+          if (fatal) {
+            log(STOP_HINT[a.failure as Exclude<typeof a.failure, "timeout" | undefined>]);
+            break outer;
+          }
         } finally {
           // Memory: the facts must not stay on disk for the exam.
           await (isMemory ? emptyDir(dir) : rm(dir, { recursive: true, force: true }));
@@ -194,6 +220,8 @@ export function summarize(rows: RunRow[]) {
       `${c.padEnd(20)} ${(mean(e.full)?.toFixed(1) ?? "—").padStart(6)} ${(mean(e.stock)?.toFixed(1) ?? "—").padStart(7)}   ${lift.padEnd(20)} ${`${e.passes}/${e.runs}${rel}`.padEnd(16)} ${tok === null ? "—" : kTokens(tok)}`,
     );
   }
+  const abandoned = rows.filter((r) => r.abandoned).length;
+  if (abandoned) lines.push("", `${abandoned} run${abandoned > 1 ? "s" : ""} abandoned (the agent failed outside the challenge): not counted as pass or fail.`);
   lines.push(
     "",
     "Lift = normalized gain of your ranked Full runs over Stock (−100…+100). Practice runs do not change it.",

@@ -20,6 +20,9 @@ and runs your own Claude Code there (`claude -p`) twice:
   (none of your user settings, hooks or plugins) and the Skill tool disabled.
 
 The answer in `answer.json` and the token count Claude Code reports are submitted. Your Lift is the normalized gain of Full over Stock (−100 to +100); runs made by the CLI are marked verified.
+If Claude Code fails for a reason outside the challenge (plan usage limit, API rate limit, expired sign-in, crash, or a
+timeout before any answer was written), the run is closed as **abandoned** (not a pass, not a fail, no flag) instead of
+submitting an empty answer, and the CLI stops the whole suite (a timeout only skips that run).
 Before the Stock runs, a one-question check (on Haiku) reports anything a Stock run can still see, for example a
 user-level `CLAUDE.md`, so the result is labelled honestly. Runs use your own subscription or API key, stop at
 `--budget` tokens, and never use `--dangerously-skip-permissions`: the agent may only read/write files and run

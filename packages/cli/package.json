@@ -1,6 +1,6 @@
 {
   "name": "setuptier",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SetupTier CLI: measure what your AI setup adds. Sign in, scan your loadout (names only), run challenges.",
   "type": "module",
   "bin": {

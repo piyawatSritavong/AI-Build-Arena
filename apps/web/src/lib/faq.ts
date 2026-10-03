@@ -14,7 +14,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How does SetupTier stop cheating?",
-    a: "Every attempt gets fresh random input and the answer is checked by code, so answers cannot be copied. Results are flagged when they are impossible: a hard challenge passed faster than an AI can read and solve it, a token count no real run can have, or an empty Stock answer. Flagged passes do not count, and flags plus a brand-new GitHub account lower an account's trust score. Low-trust accounts are left off the leaderboard, and in community numbers each account counts as one vote, however many runs it makes. Runs made by the setuptier CLI are measured on your machine and marked verified.",
+    a: "Every attempt gets fresh random input and the answer is checked by code, so answers cannot be copied. Results are flagged when they are impossible: a hard challenge passed faster than an AI can read and solve it, a token count no real run can have, or an empty Stock answer. Flagged passes do not count, and flags plus a brand-new GitHub account lower an account's trust score. Low-trust accounts are left off the leaderboard, and in community numbers each account counts as one vote, however many runs it makes. Runs made by the setuptier CLI are measured on your machine and marked verified. If the agent breaks down for a reason outside the challenge (plan usage limit, API rate limit, expired sign-in, crash), the CLI stops and the run is recorded as abandoned: neither a pass nor a fail, and no flag.",
   },
   {
     q: "Which AI tools can I connect?",

@@ -281,6 +281,55 @@ export async function submitAttempt(
   };
 }
 
+export const ABANDON_REASONS = ["usage_limit", "rate_limit", "auth", "agent_error", "timeout"] as const;
+export type AbandonReason = (typeof ABANDON_REASONS)[number];
+
+/**
+ * CLI only: the agent failed for a reason outside the challenge (see ABANDON_REASONS), so the attempt is closed
+ * as 'abandoned': no pass, no fail, no flag, nowhere in the stats. It still used up one of the hourly attempts.
+ * A learn day (an enrollment) lapses so a new round can start; an abandoned exam leaves its round waiting.
+ */
+export async function abandonAttempt(
+  { db, userId }: ArenaUser,
+  input: { attemptId: string; reason: AbandonReason; tokensMeasured?: number; costUsd?: number; model?: string; client?: string },
+): Promise<{ ok: true; status: "abandoned" } | Fail> {
+  const { data: attempt } = await db.from("attempts").select("id, status, issued_at, expires_at, source").eq("id", input.attemptId).eq("user_id", userId).maybeSingle();
+  if (!attempt) {
+    const { data: learn } = await db
+      .from("memory_enrollments")
+      .update({ status: "expired" })
+      .eq("id", input.attemptId)
+      .eq("user_id", userId)
+      .eq("status", "learning")
+      .select("id");
+    return learn?.length ? { ok: true, status: "abandoned" } : { ok: false, error: "Attempt not found or already finished." };
+  }
+  if (attempt.status !== "issued") return { ok: false, error: `Attempt already ${attempt.status}.` };
+  if (attempt.source !== "cli") return { ok: false, error: "Only attempts the CLI started can be abandoned." };
+  const now = new Date();
+  // Past the time limit it is an ordinary expiry (a fail for Reliability), not something to opt out of.
+  const late = now > new Date(attempt.expires_at);
+  const { data: updated } = await db
+    .from("attempts")
+    .update({
+      status: late ? "expired" : "abandoned",
+      abandon_reason: late ? null : input.reason,
+      submitted_at: now.toISOString(),
+      duration_ms: now.getTime() - new Date(attempt.issued_at).getTime(),
+      tokens_measured: input.tokensMeasured ?? null,
+      cost_usd: input.costUsd !== undefined ? Math.round(input.costUsd * 10_000) / 10_000 : null,
+      model_self_reported: input.model?.slice(0, 80) ?? null,
+      client: input.client?.slice(0, 40) ?? null,
+    })
+    .eq("id", attempt.id)
+    .eq("status", "issued")
+    .select("id");
+  if (!updated?.length) return { ok: false, error: "Attempt was already submitted." };
+  if (late) return { ok: false, error: "Time limit exceeded; attempt expired." };
+  await track(db, userId, "challenge_abandoned", { reason: input.reason });
+  return { ok: true, status: "abandoned" };
+}
+
 /** Memory Fitness learn day: grade the quiz (the day-1 baseline) and schedule the exam. */
 async function submitLearnDay({ db, userId }: ArenaUser, input: { attemptId: string; answer: string }): Promise<SubmittedAnswer | Fail> {
   const { data: e } = await db

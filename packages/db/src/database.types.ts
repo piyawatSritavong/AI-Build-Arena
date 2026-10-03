@@ -63,13 +63,13 @@ isOneToOne: false
                   ]
                 },"attempts": {
                   Row: {
-                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"client": string | null,"correct": boolean | null,"cost_usd": number | null,"duration_ms": number | null,"expires_at": string,"flags": (string)[],"id": string,"issued_at": string,"lift": number | null,"mode": Database["public"]['Enums']["attempt_mode"],"model_self_reported": string | null,"score": number | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_measured": number | null,"tokens_self_reported": number | null,"user_id": string,"variant_id": string | null
+                    "abandon_reason": string | null,"build_id": string | null,"challenge_id": string,"challenge_version": number,"client": string | null,"correct": boolean | null,"cost_usd": number | null,"duration_ms": number | null,"expires_at": string,"flags": (string)[],"id": string,"issued_at": string,"lift": number | null,"mode": Database["public"]['Enums']["attempt_mode"],"model_self_reported": string | null,"score": number | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_measured": number | null,"tokens_self_reported": number | null,"user_id": string,"variant_id": string | null
                   }
                   Insert: {
-                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at": string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id": string,"variant_id"?: string | null
+                    "abandon_reason"?: string | null,"build_id"?: string | null,"challenge_id": string,"challenge_version": number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at": string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id": string,"variant_id"?: string | null
                   }
                   Update: {
-                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at"?: string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id"?: string,"variant_id"?: string | null
+                    "abandon_reason"?: string | null,"build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at"?: string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id"?: string,"variant_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -439,7 +439,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "attempt_mode": "ranked"|"practice","attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai","loadout_visibility": "hidden"|"categories"|"names"|"install","memory_status": "learning"|"waiting"|"examined"|"expired","result_source": "mcp"|"cli","scan_source": "paste"|"cli","variant_kind": "full"|"stock"|"ablation"|"custom"
+            "attempt_mode": "ranked"|"practice","attempt_status": "issued"|"passed"|"failed"|"expired"|"abandoned","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai","loadout_visibility": "hidden"|"categories"|"names"|"install","memory_status": "learning"|"waiting"|"examined"|"expired","result_source": "mcp"|"cli","scan_source": "paste"|"cli","variant_kind": "full"|"stock"|"ablation"|"custom"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -559,7 +559,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "attempt_mode": ["ranked", "practice"],"attempt_status": ["issued", "passed", "failed", "expired"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"],"loadout_visibility": ["hidden", "categories", "names", "install"],"memory_status": ["learning", "waiting", "examined", "expired"],"result_source": ["mcp", "cli"],"scan_source": ["paste", "cli"],"variant_kind": ["full", "stock", "ablation", "custom"]
+            "attempt_mode": ["ranked", "practice"],"attempt_status": ["issued", "passed", "failed", "expired", "abandoned"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"],"loadout_visibility": ["hidden", "categories", "names", "install"],"memory_status": ["learning", "waiting", "examined", "expired"],"result_source": ["mcp", "cli"],"scan_source": ["paste", "cli"],"variant_kind": ["full", "stock", "ablation", "custom"]
           }
         }
 } as const

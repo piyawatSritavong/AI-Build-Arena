@@ -24,6 +24,11 @@ if (prompt.includes("SETUPTIER PROBE")) {
   out('{"instructions": false, "mcp_servers": [], "skills": []}');
   process.exit(0);
 }
+// Plan usage runs out mid-suite: Claude Code reports it as an error result and exits 1, writing no answer.
+if (process.env.FAKE_AGENT_SESSION_LIMIT) {
+  console.log(JSON.stringify({ type: "result", is_error: true, result: "You've hit your session limit · resets 1:50am", num_turns: 1, usage: { input_tokens: 300, output_tokens: 0 } }));
+  process.exit(1);
+}
 const stock = args.includes("--strict-mcp-config");
 const input = JSON.parse(readFileSync("input.json", "utf8"));
 
