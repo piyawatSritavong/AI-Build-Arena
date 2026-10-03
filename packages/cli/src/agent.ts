@@ -40,6 +40,7 @@ export function agentArgs(variant: Variant, model?: string): string[] {
 
 interface ClaudeJson {
   is_error?: boolean;
+  api_error_status?: number;
   result?: string;
   num_turns?: number;
   total_cost_usd?: number;
@@ -112,6 +113,26 @@ export async function agentLoggedIn(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** `claude auth status` can say "logged in" while the OAuth token has expired; only a real call tells. */
+export class AgentAuthError extends Error {}
+
+/** One tiny real call (Haiku, no MCP) before any challenge starts, so a dead sign-in fails nothing on the server. */
+export async function pingAgent(cwd: string): Promise<{ tokens: number }> {
+  const r = await exec(agentArgs("stock", "haiku"), "SETUPTIER PING. Reply with exactly: OK", cwd, 120_000);
+  let j: ClaudeJson = {};
+  try {
+    j = JSON.parse(r.stdout.trim().split("\n").filter(Boolean).at(-1) ?? "{}") as ClaudeJson;
+  } catch {
+    // not JSON: judged below
+  }
+  const text = `${j.result ?? ""} ${r.stderr}`;
+  if (j.api_error_status === 401 || /OAuth|authenticat|log ?in|\/login/i.test(j.is_error || r.code !== 0 ? text : "")) {
+    throw new AgentAuthError("Claude Code's sign-in has expired. Run `claude` once in a terminal (type /login if it asks), then try again. Nothing was started.");
+  }
+  if (r.code !== 0 && !r.stdout.trim()) throw new Error(`Claude Code did not start: ${(r.stderr.trim() || `exit code ${r.code}`).slice(0, 300)}`);
+  return { tokens: parseAgentJson(r.stdout).tokens };
 }
 
 export interface StockProbe {

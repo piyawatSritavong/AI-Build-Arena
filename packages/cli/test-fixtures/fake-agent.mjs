@@ -12,6 +12,14 @@ const prompt = readFileSync(0, "utf8");
 const out = (result) =>
   console.log(JSON.stringify({ type: "result", is_error: false, result, num_turns: 3, total_cost_usd: 0.01, usage: { input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 500 }, modelUsage: { "claude-fake-1": { outputTokens: 200 } } }));
 
+if (prompt.includes("SETUPTIER PING")) {
+  if (process.env.FAKE_AGENT_AUTH_EXPIRED) {
+    console.log(JSON.stringify({ type: "result", is_error: true, api_error_status: 401, result: "Failed to authenticate. API Error: 401 OAuth access token has expired.", usage: {} }));
+    process.exit(1);
+  }
+  out("OK");
+  process.exit(0);
+}
 if (prompt.includes("SETUPTIER PROBE")) {
   out('{"instructions": false, "mcp_servers": [], "skills": []}');
   process.exit(0);

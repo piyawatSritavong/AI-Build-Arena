@@ -49,6 +49,21 @@ describe("scanMachine (privacy)", () => {
   });
 });
 
+describe("expired Claude Code sign-in", () => {
+  it("stops before starting anything on the server", async () => {
+    process.env.SETUPTIER_AGENT_CMD = fileURLToPath(new URL("../test-fixtures/fake-agent.mjs", import.meta.url));
+    process.env.FAKE_AGENT_AUTH_EXPIRED = "1";
+    try {
+      // The URL is unreachable on purpose: reaching the server at all would fail differently.
+      const run = runSuite({ url: "http://127.0.0.1:9", token: "aba_x", username: "x" }, { challenges: ["sum-of-evens"], variants: ["full"], runs: 1, mode: "ranked", budgetTokens: 100_000, probe: false }, () => {});
+      await expect(run).rejects.toThrow(/sign-in has expired/);
+    } finally {
+      delete process.env.SETUPTIER_AGENT_CMD;
+      delete process.env.FAKE_AGENT_AUTH_EXPIRED;
+    }
+  });
+});
+
 // End-to-end against a running web app: device sign-in → token → whoami → scan upload.
 const url = process.env.ARENA_E2E_URL;
 describe.skipIf(!url)("CLI device sign-in e2e", () => {
@@ -127,14 +142,15 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
       );
       expect(r.probe).toEqual({ instructions: false, mcpServers: [], skills: [] });
       expect(r.rows.map((x) => `${x.variant}:${x.correct}`)).toEqual(["full:true", "stock:false"]);
-      expect(r.tokens).toBe(1700 * 3); // probe + 2 runs
+      expect(r.tokens).toBe(1700 * 4); // sign-in ping + probe + 2 runs
       // Paired Lift: Full ≈ 100 over a Stock of 0 → normalized gain ≈ +100, both sides from the CLI = verified.
       expect(r.rows[1]!.challengeLift).toMatchObject({ basis: "own", verified: true });
       expect(r.rows[1]!.challengeLift!.lift).toBeGreaterThan(99);
       expect(summarize(r.rows)).toMatch(/sum-of-evens\s+\d+\.\d\s+0\.0\s+\+(99|100)\.\d ✓/);
 
       const calls = (await readFile(log, "utf8")).trim().split("\n").map((l) => JSON.parse(l) as string[]);
-      const [probe, full, stock] = calls;
+      const [ping, probe, full, stock] = calls;
+      expect(ping).toEqual(expect.arrayContaining(["--model", "haiku", "--strict-mcp-config"]));
       expect(probe).toContain("--strict-mcp-config");
       expect(full).not.toContain("--strict-mcp-config");
       expect(stock).toEqual(expect.arrayContaining(["--strict-mcp-config", "--setting-sources", "project", "--model", "claude-fake-1"]));

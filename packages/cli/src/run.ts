@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { wilsonLower, type Json } from "@arena/core";
 import { api, ApiError } from "./api";
-import { agentLoggedIn, agentVersion, probeStock, runAgent, type StockProbe, type Variant } from "./agent";
+import { agentLoggedIn, agentVersion, pingAgent, probeStock, runAgent, type StockProbe, type Variant } from "./agent";
 import type { Credentials } from "./config";
 import { baseUrl } from "./config";
 import { emptyDir, MEMORY_CHALLENGE, memoryWorkspace } from "./memory";
@@ -77,6 +77,10 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
   const rows: RunRow[] = [];
   let spent = 0;
   let model = opts.model;
+
+  // A real call first: an expired sign-in must stop us before any attempt starts (and would count as a fail).
+  const pingDir = await mkdtemp(join(tmpdir(), "setuptier-ping-"));
+  spent += (await pingAgent(pingDir).finally(() => rm(pingDir, { recursive: true, force: true }))).tokens;
 
   let probe: StockProbe | null = null;
   if (opts.probe && opts.variants.includes("stock")) {
