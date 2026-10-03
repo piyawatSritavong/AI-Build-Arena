@@ -5,6 +5,7 @@ import type { Database } from "@arena/db";
 export function createAdminClient() {
   const key = process.env.SUPABASE_SECRET_KEY?.trim();
   if (!key || /\s/.test(key)) throw new Error("SUPABASE_SECRET_KEY is missing or contains whitespace");
+  if (key.startsWith("sb_publishable_")) throw new Error("SUPABASE_SECRET_KEY holds a publishable key; use the sb_secret_ key");
   return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
