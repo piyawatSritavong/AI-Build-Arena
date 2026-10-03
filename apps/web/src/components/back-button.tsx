@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { btnBack } from "./ui";
 
 const KEY = "arena-nav-stack";
 
@@ -12,37 +14,39 @@ function readStack(): string[] {
     return [];
   }
 }
-function writeStack(stack: string[]) {
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(stack.slice(-50)));
-  } catch {
-    // storage unavailable (private mode): back falls through to home
-  }
-}
 
-/**
- * History back within the site; goes home when there is no in-site page to return to
- * (e.g. the page was opened from a shared link). Tracks in-site pages per tab.
- */
-export function BackButton({ className }: { className?: string }) {
-  const router = useRouter();
+/** Mounted once in the root layout: remembers in-site pages per tab so Back can tell where the user came from. */
+export function NavTracker() {
   const pathname = usePathname();
-
   useEffect(() => {
     const stack = readStack();
     if (stack.at(-1) === pathname) return;
-    if (stack.at(-2) === pathname) stack.pop(); // browser/back-button navigation
+    if (stack.at(-2) === pathname) stack.pop();
     else stack.push(pathname);
-    writeStack(stack);
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify(stack.slice(-50)));
+    } catch {
+      // storage unavailable: BackButton falls back to its href
+    }
   }, [pathname]);
+  return null;
+}
 
+/** Fixed destination, labelled with where it goes (predictable). */
+export function BackLink({ href, label }: { href: string; label: string }) {
   return (
-    <button
-      type="button"
-      className={className}
-      onClick={() => (readStack().length > 1 ? router.back() : router.push("/"))}
-    >
-      ← ย้อนกลับ
+    <Link href={href} className={btnBack}>
+      ← {label}
+    </Link>
+  );
+}
+
+/** For pages reachable from several places (card, login): previous in-site page, else the fallback. */
+export function BackButton({ fallbackHref, label = "Back" }: { fallbackHref: string; label?: string }) {
+  const router = useRouter();
+  return (
+    <button type="button" className={btnBack} onClick={() => (readStack().length > 1 ? router.back() : router.push(fallbackHref))}>
+      ← {label}
     </button>
   );
 }

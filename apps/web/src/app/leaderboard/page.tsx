@@ -2,6 +2,10 @@ import Link from "next/link";
 import { SpriteView } from "@/components/sprite";
 import { fmt, signed } from "@/lib/cards";
 import { createPublicClient } from "@/lib/supabase/public";
+import { BackLink } from "@/components/back-button";
+import { PageShell } from "@/components/page-shell";
+import { btnPrimary, btnSecondary } from "@/components/ui";
+import { getViewer } from "@/lib/session";
 
 export const metadata = { title: "Leaderboard · AI Build Arena" };
 
@@ -14,10 +18,25 @@ const TABS = [
 export default async function LeaderboardPage({ searchParams }: PageProps<"/leaderboard">) {
   const { league: raw } = await searchParams;
   const league = raw === "global" || raw === "thai" ? raw : undefined;
-  const { data: rows } = await createPublicClient().rpc("leaderboard", { p_league: league, p_limit: 100 });
+  const [{ data: rows }, viewer] = await Promise.all([
+    createPublicClient().rpc("leaderboard", { p_league: league, p_limit: 100 }),
+    getViewer(),
+  ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-10">
+    <PageShell
+      back={<BackLink href="/" label="Home" />}
+      topRight={viewer && <Link href={`/u/${viewer.username}`} className={btnSecondary}>Your Card</Link>}
+      footerLeft={<Link href="/trend" className={btnSecondary}>60s Trend Check</Link>}
+      footerRight={
+        viewer ? (
+          <Link href="/me" className={btnPrimary}>My build →</Link>
+        ) : (
+          <Link href="/login?next=/me" className={btnPrimary}>Join the Arena →</Link>
+        )
+      }
+    >
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Leaderboard</h1>
       <nav className="flex gap-2 text-sm">
         {TABS.map((t) => (
@@ -31,7 +50,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
         ))}
       </nav>
       {!rows?.length ? (
-        <p className="opacity-70">No passed challenges yet. Connect your AI from your profile and be the first.</p>
+        <p className="opacity-70">No passed challenges yet. Join, connect your AI and be the first on the board.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -65,6 +84,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
           </table>
         </div>
       )}
-    </main>
+    </div>
+    </PageShell>
   );
 }

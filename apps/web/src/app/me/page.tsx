@@ -7,6 +7,9 @@ import { saveBuild } from "./actions";
 import { ProWaitlist } from "@/components/pro-waitlist";
 import { McpConnect } from "./mcp-connect";
 import { revokeToken } from "./token-actions";
+import { BackLink } from "@/components/back-button";
+import { PageShell } from "@/components/page-shell";
+import { btnPrimary, btnSecondary } from "@/components/ui";
 
 const input = "w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2";
 
@@ -28,9 +31,33 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
     { done: (attempts ?? 0) > 0, label: "Have your AI solve its first challenge" },
   ];
   const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/api/mcp`;
+  const cardHref = `/u/${profile?.username}`;
+  const saveButton = (primary: boolean) => (
+    <button form="build-form" className={primary ? btnPrimary : btnSecondary}>
+      {primary ? "Save build →" : "Save changes"}
+    </button>
+  );
+  // Primary action = the next onboarding step.
+  const next = !build ? saveButton(true) : !tokens?.length ? (
+    <a href="#connect" className={btnPrimary}>Connect your AI ↓</a>
+  ) : (
+    <Link href={cardHref} className={btnPrimary}>View my card →</Link>
+  );
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 space-y-8 px-4 py-10">
+    <PageShell
+      width="max-w-xl"
+      back={<BackLink href="/" label="Home" />}
+      topRight={
+        <>
+          <Link href={cardHref} className={btnSecondary}>Your Card</Link>
+          <Link href="/leaderboard" className={btnSecondary}>Leaderboard</Link>
+        </>
+      }
+      footerLeft={build ? saveButton(false) : undefined}
+      footerRight={next}
+    >
+    <div className="space-y-8">
       <header className="flex items-center gap-4">
         {profile?.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -38,12 +65,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
         )}
         <div className="flex-1">
           <h1 className="text-xl font-semibold">{profile?.display_name ?? profile?.username}</h1>
-          <p className="text-sm opacity-70">
-            @{profile?.username} ·{" "}
-            <Link href={`/u/${profile?.username}`} className="underline">
-              public card
-            </Link>
-          </p>
+          <p className="text-sm opacity-70">@{profile?.username}</p>
         </div>
         <form action="/auth/signout" method="post">
           <button className="text-sm underline opacity-70">Sign out</button>
@@ -71,7 +93,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
         <h2 className="text-lg font-semibold">My AI Build</h2>
         {saved && <p className="text-sm text-green-600">Saved.</p>}
         {error && <p className="text-sm text-red-500">Could not save ({String(error)}).</p>}
-        <form action={saveBuild} className="space-y-3">
+        <form id="build-form" action={saveBuild} className="space-y-3">
           <label className="block space-y-1 text-sm">
             <span>Build name</span>
             <input name="name" required maxLength={60} defaultValue={build?.name ?? ""} className={input} />
@@ -110,11 +132,10 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
               ))}
             </div>
           </fieldset>
-          <button className="rounded-md bg-foreground px-4 py-2 text-background hover:opacity-90">Save build</button>
         </form>
       </section>
 
-      <section className="space-y-4">
+      <section id="connect" className="scroll-mt-4 space-y-4">
         <h2 className="text-lg font-semibold">Connect your AI (MCP)</h2>
         <p className="text-sm opacity-80">Add the Arena as a remote MCP server, then ask your AI to list challenges and solve one.</p>
         <McpConnect mcpUrl={mcpUrl} />
@@ -137,6 +158,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
       </section>
 
       <ProWaitlist />
-    </main>
+    </div>
+    </PageShell>
   );
 }
