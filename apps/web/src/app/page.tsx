@@ -102,10 +102,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="max-w-xl space-y-3">
-        <ProWaitlist />
-        <p className="text-xs opacity-60">Truth and rankings are always free. Money buys looks, never rank. Tool makers can&apos;t pay to change recommendations.</p>
-      </section>
+      <ProWaitlist signedIn={signedIn} />
     </main>
   );
 }
