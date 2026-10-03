@@ -23,7 +23,7 @@ async function handle(request: Request) {
   if (!userId) {
     return Response.json(
       { jsonrpc: "2.0", error: { code: -32001, message: "Missing or invalid API token. Create one at /me." }, id: null },
-      { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="ai-build-arena"' } },
+      { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="setuptier"' } },
     );
   }
   if (!(await rateLimit(`mcp-user:${userId}`, 60))) return limited("Rate limit: 60 MCP requests per minute.");

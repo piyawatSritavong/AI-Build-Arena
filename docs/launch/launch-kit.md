@@ -3,7 +3,7 @@
 Goal for week 1: ≥10 builders finish one challenge. Watch activation (sign-up → ≥1 challenge), D7 retention, share rate and Pro waitlist clicks (`public.events`).
 
 ## DM template (personal, 1:1)
-> สวัสดีครับ กำลังทำของเล่นใหม่ชื่อ AI Build Arena อยากให้ช่วยลองก่อนเปิดจริงครับ 🙏
+> สวัสดีครับ กำลังทำของเล่นใหม่ชื่อ SetupTier อยากให้ช่วยลองก่อนเปิดจริงครับ 🙏
 > ไอเดียคือวัดว่า "setup AI ของเรา" (Claude Code / Codex / Cursor + MCP + skills) ช่วยให้เก่งกว่าโมเดลเปล่า ๆ แค่ไหน เรียกว่า **Lift**
 > ใช้เวลา ~3 นาที: login GitHub → ก๊อปคำสั่ง MCP ไปวาง → สั่ง AI ทำโจทย์ 1 ข้อ → ได้การ์ด pixel ของตัวเอง
 > มีลีกไทยด้วย (บาทถ้วน, พ.ศ., VAT/หัก ณ ที่จ่าย) 😄
@@ -13,7 +13,7 @@ Goal for week 1: ≥10 builders finish one challenge. Watch activation (sign-up 
 ## Post (Facebook dev groups / X)
 > ตามเทรนด์ AI ไม่ทัน? บางทีคุณอาจไม่ได้ตกเทรนด์ แค่ "แบกของเยอะเกินไป" 🎒
 >
-> ทำเว็บเล็ก ๆ ชื่อ AI Build Arena:
+> ทำเว็บเล็ก ๆ ชื่อ SetupTier:
 > ✅ Trend Check 60 วินาที ไม่ต้องสมัคร: ดูว่าเครื่องมือที่ใช้อยู่ อันไหนพิสูจน์แล้วว่าช่วยจริง อันไหนแค่กระแส อันไหนเลิกใช้ได้แล้ว
 > 🩺 Loadout Doctor: วาง config (MCP/skills/hooks) แล้วหาของซ้ำ ของบวม และ secret ที่เผลอฝังไว้ (ประมวลผลในเบราว์เซอร์ ไม่ส่งขึ้นเซิร์ฟเวอร์)
 > 🏟️ Arena: ให้ AI ของคุณทำโจทย์จริง 15 ข้อ รวมลีกไทย แล้ววัด Lift เทียบโมเดลเปล่า

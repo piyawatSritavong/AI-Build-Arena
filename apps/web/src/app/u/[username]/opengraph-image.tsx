@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { auraFor, auraStage, getSprite, spriteDataUri, STAGE_NAMES } from "@arena/core";
 import { fmt, getProfileCard, rankLabel, signed } from "@/lib/cards";
 
-export const alt = "AI Build Arena profile card";
+export const alt = "SetupTier profile card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -50,7 +50,7 @@ export default async function Image({ params }: { params: Promise<{ username: st
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 40, fontSize: 26, opacity: 0.6, display: "flex" }}>AI Build Arena</div>
+          <div style={{ marginTop: 40, fontSize: 26, opacity: 0.6, display: "flex" }}>SetupTier</div>
         </div>
       </div>
     ),

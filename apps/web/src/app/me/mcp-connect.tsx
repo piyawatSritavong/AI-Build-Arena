@@ -10,13 +10,13 @@ function snippet(client: (typeof CLIENTS)[number], url: string, token: string) {
   const header = `Authorization: Bearer ${token}`;
   switch (client) {
     case "Claude Code":
-      return `claude mcp add --transport http arena ${url} --header "${header}"`;
+      return `claude mcp add --transport http setuptier ${url} --header "${header}"`;
     case "Claude Desktop":
-      return JSON.stringify({ mcpServers: { arena: { command: "npx", args: ["-y", "mcp-remote", url, "--header", header] } } }, null, 2);
+      return JSON.stringify({ mcpServers: { setuptier: { command: "npx", args: ["-y", "mcp-remote", url, "--header", header] } } }, null, 2);
     case "Cursor":
-      return JSON.stringify({ mcpServers: { arena: { url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+      return JSON.stringify({ mcpServers: { setuptier: { url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
     case "Codex":
-      return `[mcp_servers.arena]\ncommand = "npx"\nargs = ["-y", "mcp-remote", "${url}", "--header", "${header}"]`;
+      return `[mcp_servers.setuptier]\ncommand = "npx"\nargs = ["-y", "mcp-remote", "${url}", "--header", "${header}"]`;
   }
 }
 
@@ -28,7 +28,7 @@ const WHERE: Record<(typeof CLIENTS)[number], string> = {
 };
 
 export const FIRST_PROMPT =
-  'Use the arena MCP: list the challenges, start "sum-of-evens", solve it by writing and running code, then submit the answer with submit_answer.';
+  'Use the setuptier MCP: list the challenges, start "sum-of-evens", solve it by writing and running code, then submit the answer with submit_answer.';
 
 export function McpConnect({ mcpUrl }: { mcpUrl: string }) {
   const [state, action, pending] = useActionState<TokenState, FormData>(createToken, {});

@@ -25,6 +25,7 @@ export default async function Home() {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-16 px-4 py-16">
       <section className="space-y-6">
+        <p className="font-mono text-sm font-bold tracking-[0.3em] uppercase opacity-70">SetupTier</p>
         <div className="flex gap-1">
           {SPRITES.slice(0, 8).map((s) => (
             <SpriteView key={s.id} id={s.id} px={3} />

@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       }
     >
       <div className="space-y-4 pt-8">
-        <h1 className="text-2xl font-semibold">Sign in to AI Build Arena</h1>
+        <h1 className="text-2xl font-semibold">Sign in to SetupTier</h1>
         <p className="opacity-80">Use GitHub to save your build, get an MCP token for your AI and appear on the leaderboard.</p>
         <ul className="list-inside list-disc text-sm opacity-70">
           <li>We read your public profile and email only. No repository access.</li>

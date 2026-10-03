@@ -7,7 +7,7 @@ import { readTrendStats, statsQuery } from "./stats";
 
 export async function generateMetadata({ searchParams }: PageProps<"/trend/result">): Promise<Metadata> {
   const s = readTrendStats(await searchParams);
-  const title = `Meta Sync ${s.sync}% · AI Build Arena Trend Check`;
+  const title = `Meta Sync ${s.sync}% · SetupTier Trend Check`;
   const images = [{ url: `/api/og/trend?${statsQuery(s)}`, width: 1200, height: 630 }];
   return { title, openGraph: { title, images }, twitter: { card: "summary_large_image", title, images } };
 }

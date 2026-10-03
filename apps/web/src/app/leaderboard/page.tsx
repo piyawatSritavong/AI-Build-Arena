@@ -7,7 +7,7 @@ import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
 import { getViewer } from "@/lib/session";
 
-export const metadata = { title: "Leaderboard · AI Build Arena" };
+export const metadata = { title: "Leaderboard · SetupTier" };
 
 const TABS = [
   { league: undefined, label: "Overall" },

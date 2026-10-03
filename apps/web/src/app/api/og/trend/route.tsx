@@ -13,7 +13,7 @@ export function GET(request: NextRequest) {
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: 80, background: "#0b1020", color: "#f8fafc", fontFamily: "sans-serif" }}>
-        <div style={{ display: "flex", fontSize: 30, opacity: 0.7 }}>AI Build Arena · Trend Check</div>
+        <div style={{ display: "flex", fontSize: 30, opacity: 0.7 }}>SetupTier · Trend Check</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, marginTop: 10 }}>
           <div style={{ display: "flex", fontSize: 180, fontWeight: 700, lineHeight: 1 }}>{s.sync}%</div>
           <div style={{ display: "flex", fontSize: 40, paddingBottom: 24, opacity: 0.8 }}>Meta Sync</div>

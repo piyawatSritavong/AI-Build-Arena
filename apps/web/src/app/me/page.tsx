@@ -137,7 +137,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
 
       <section id="connect" className="scroll-mt-4 space-y-4">
         <h2 className="text-lg font-semibold">Connect your AI (MCP)</h2>
-        <p className="text-sm opacity-80">Add the Arena as a remote MCP server, then ask your AI to list challenges and solve one.</p>
+        <p className="text-sm opacity-80">Add SetupTier as a remote MCP server, then ask your AI to list challenges and solve one.</p>
         <McpConnect mcpUrl={mcpUrl} />
         {!!tokens?.length && (
           <ul className="divide-y divide-foreground/10 text-sm">

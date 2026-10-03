@@ -29,13 +29,13 @@ async function track(db: SupabaseClient<Database>, userId: string, name: string,
 }
 
 export function createArenaMcpServer({ db, userId }: ArenaContext) {
-  const server = new McpServer({ name: "ai-build-arena", version: "0.1.0" });
+  const server = new McpServer({ name: "setuptier", version: "0.1.0" });
 
   server.registerTool(
     "list_challenges",
     {
       title: "List challenges",
-      description: "List active AI Build Arena challenges. Pick one, then call get_challenge.",
+      description: "List active SetupTier challenges. Pick one, then call get_challenge.",
       inputSchema: { league: z.enum(["global", "thai"]).optional().describe("Filter by league") },
       annotations: { readOnlyHint: true },
     },

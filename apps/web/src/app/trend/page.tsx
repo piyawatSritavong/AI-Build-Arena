@@ -1,7 +1,7 @@
 import { GEAR } from "@arena/loadout";
 import { TrendClient } from "./trend-client";
 
-export const metadata = { title: "Trend Check · AI Build Arena", description: "Can't keep up with AI trends? Maybe you're carrying too much. 60-second check, no signup." };
+export const metadata = { title: "Trend Check · SetupTier", description: "Can't keep up with AI trends? Maybe you're carrying too much. 60-second check, no signup." };
 
 const KNOWN = new Set(GEAR.map((g) => g.id));
 

@@ -11,8 +11,8 @@ import { getViewer } from "@/lib/session";
 export async function generateMetadata({ params }: PageProps<"/u/[username]">): Promise<Metadata> {
   const { username } = await params;
   const card = await getProfileCard(username);
-  if (!card) return { title: "Not found · AI Build Arena" };
-  const title = `${card.display_name ?? card.username}'s AI Build · AI Build Arena`;
+  if (!card) return { title: "Not found · SetupTier" };
+  const title = `${card.display_name ?? card.username}'s AI Build · SetupTier`;
   const description = `${card.passed} challenges passed · avg Lift ${card.avg_lift ?? "—"} · ${card.build?.base_model ?? "no build"}`;
   return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
 }
@@ -24,7 +24,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
 
   const isOwner = viewer?.username === card.username;
   const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/u/${card.username}`;
-  const text = isOwner ? `My AI build passed ${card.passed} challenges on AI Build Arena` : `Check out this AI build on AI Build Arena`;
+  const text = isOwner ? `My AI build passed ${card.passed} challenges on SetupTier` : `Check out this AI build on SetupTier`;
   const shareHref = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 
   return (

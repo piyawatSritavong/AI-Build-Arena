@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: "AI Build Arena",
-  description: "Measure, show off and improve your personal AI build.",
+  title: "SetupTier",
+  description: "What tier is your AI setup? Measure, show off and improve your personal AI build.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
