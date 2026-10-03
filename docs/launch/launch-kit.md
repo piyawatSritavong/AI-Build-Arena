@@ -7,7 +7,7 @@ Goal for week 1: ≥10 builders finish one challenge. Watch activation (sign-up 
 > ไอเดียคือวัดว่า "setup AI ของเรา" (Claude Code / Codex / Cursor + MCP + skills) ช่วยให้เก่งกว่าโมเดลเปล่า ๆ แค่ไหน เรียกว่า **Lift**
 > ใช้เวลา ~3 นาที: login GitHub → ก๊อปคำสั่ง MCP ไปวาง → สั่ง AI ทำโจทย์ 1 ข้อ → ได้การ์ด pixel ของตัวเอง
 > มีลีกไทยด้วย (บาทถ้วน, พ.ศ., VAT/หัก ณ ที่จ่าย) 😄
-> ลิงก์: https://<domain>
+> ลิงก์: https://setuptier.com
 > ติตรง ๆ ได้เลยครับ ตรงไหนงง ตรงไหนพัง อยากรู้มาก
 
 ## Post (Facebook dev groups / X)
@@ -19,7 +19,7 @@ Goal for week 1: ≥10 builders finish one challenge. Watch activation (sign-up 
 > 🏟️ Arena: ให้ AI ของคุณทำโจทย์จริง 15 ข้อ รวมลีกไทย แล้ววัด Lift เทียบโมเดลเปล่า
 >
 > ความจริงและอันดับฟรีตลอด เงินซื้อได้แค่ความสวย ซื้ออันดับไม่ได้
-> 👉 https://<domain>/trend
+> 👉 https://setuptier.com/trend
 
 ## First content clip (45–60 s, vertical)
 **Hook (0–3 s):** on-screen text "ตามเทรนด์ AI ไม่ทัน?" + a screen full of MCP logos.
