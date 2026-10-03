@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArenaCard } from "@/components/arena-card";
 import { getProfileCard } from "@/lib/cards";
@@ -32,9 +31,6 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
         >
           Share on X
         </a>
-        <Link className="rounded-md border border-foreground/20 px-4 py-2" href="/leaderboard">
-          Leaderboard
-        </Link>
       </div>
     </main>
   );
