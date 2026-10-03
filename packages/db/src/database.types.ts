@@ -163,13 +163,13 @@ isOneToOne: false
                   ]
                 },"challenges": {
                   Row: {
-                    "category": string,"created_at": string,"difficulty": number,"id": string,"is_active": boolean,"league": Database["public"]['Enums']["league"],"summary": string,"time_limit_seconds": number,"title": string,"version": number
+                    "category": string,"created_at": string,"difficulty": number,"id": string,"is_active": boolean,"is_anchor": boolean,"league": Database["public"]['Enums']["league"],"summary": string,"time_limit_seconds": number,"title": string,"version": number
                   }
                   Insert: {
-                    "category": string,"created_at"?: string,"difficulty": number,"id": string,"is_active"?: boolean,"league": Database["public"]['Enums']["league"],"summary": string,"time_limit_seconds"?: number,"title": string,"version"?: number
+                    "category": string,"created_at"?: string,"difficulty": number,"id": string,"is_active"?: boolean,"is_anchor"?: boolean,"league": Database["public"]['Enums']["league"],"summary": string,"time_limit_seconds"?: number,"title": string,"version"?: number
                   }
                   Update: {
-                    "category"?: string,"created_at"?: string,"difficulty"?: number,"id"?: string,"is_active"?: boolean,"league"?: Database["public"]['Enums']["league"],"summary"?: string,"time_limit_seconds"?: number,"title"?: string,"version"?: number
+                    "category"?: string,"created_at"?: string,"difficulty"?: number,"id"?: string,"is_active"?: boolean,"is_anchor"?: boolean,"league"?: Database["public"]['Enums']["league"],"summary"?: string,"time_limit_seconds"?: number,"title"?: string,"version"?: number
                   }
                   Relationships: [
                     
@@ -243,6 +243,19 @@ isOneToOne: false
       referencedRelation: "gear_registry"
       referencedColumns: ["id"]
     }
+                  ]
+                },"leagues": {
+                  Row: {
+                    "description": string,"id": Database["public"]['Enums']["league"],"is_active": boolean,"kind": string,"locale": string,"name": string,"region_code": string | null,"short_label": string,"sort": number
+                  }
+                  Insert: {
+                    "description": string,"id": Database["public"]['Enums']["league"],"is_active"?: boolean,"kind": string,"locale": string,"name": string,"region_code"?: string | null,"short_label"?: string,"sort"?: number
+                  }
+                  Update: {
+                    "description"?: string,"id"?: Database["public"]['Enums']["league"],"is_active"?: boolean,"kind"?: string,"locale"?: string,"name"?: string,"region_code"?: string | null,"short_label"?: string,"sort"?: number
+                  }
+                  Relationships: [
+                    
                   ]
                 },"loadout_scans": {
                   Row: {
@@ -324,6 +337,11 @@ isOneToOne: false
 "leaderboard_models":
 { Args: Record<PropertyKey, never>; Returns: {
               "base_model": string,"builders": number
+            }[]
+                           },
+"league_factors":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "anchor_mean": number,"builders": number,"factor": number,"league": Database["public"]['Enums']["league"],"league_mean": number
             }[]
                            },
 "lift_baseline":

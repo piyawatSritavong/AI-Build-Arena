@@ -6,6 +6,7 @@ type Def<I extends Json, A extends Json> = ChallengeDefinition<I, A>;
 
 export const intervalMerge: Def<{ intervals: [number, number][] }, [number, number][]> = {
   id: "interval-merge",
+  anchor: true,
   version: 1,
   league: "global",
   category: "algorithm",
@@ -127,6 +128,7 @@ const PRODUCTS = ["widget", "gadget", "gizmo", "doohickey", "sprocket"];
 
 export const csvRevenue: Def<{ csv: string }, Record<string, number>> = {
   id: "csv-revenue",
+  anchor: true,
   version: 1,
   league: "global",
   category: "data",
@@ -172,6 +174,7 @@ function balanced(s: string) {
 
 export const bracketBalance: Def<{ strings: string[] }, boolean[]> = {
   id: "bracket-balance",
+  anchor: true,
   version: 1,
   league: "global",
   category: "logic",

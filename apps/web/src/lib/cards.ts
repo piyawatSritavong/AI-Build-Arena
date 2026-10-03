@@ -1,4 +1,4 @@
-import type { ProfileCard } from "@arena/core";
+import { LEAGUES, type ProfileCard } from "@arena/core";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export async function getProfileCard(username: string): Promise<ProfileCard | null> {
@@ -10,8 +10,11 @@ export async function getProfileCard(username: string): Promise<ProfileCard | nu
 export const fmt = (n: number | null | undefined, digits = 1) => (n === null || n === undefined ? "—" : Number(n).toFixed(digits));
 export const signed = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${n > 0 ? "+" : ""}${Number(n).toFixed(1)}`);
 
-export const rankLabel = (card: { global_rank: number | null; thai_rank: number | null }) =>
-  [card.global_rank && `#${card.global_rank}`, card.thai_rank && `TH #${card.thai_rank}`].filter(Boolean).join(" · ") || "—";
+/** "#3 · TH #1": the Global rank, then each regional league's rank with its short label. */
+export const rankLabel = (card: Pick<ProfileCard, "league_ranks">) =>
+  LEAGUES.map((l) => card.league_ranks?.[l.id] && `${l.short ? `${l.short} ` : ""}#${card.league_ranks[l.id]}`)
+    .filter(Boolean)
+    .join(" · ") || "—";
 
 /** Reliability as a whole percent ("≥" because it is the lower bound of the pass rate). */
 export const reliabilityLabel = (card: Pick<ProfileCard, "reliability">) => (card.reliability === null ? "—" : `${Math.round(Number(card.reliability))}%`);
@@ -36,6 +39,7 @@ export function cardFootnote(card: ProfileCard, liftTrustLabel: string | null) {
         ? `Efficiency: tokens per pass${card.tokens_verified ? " (CLI-measured)" : " (self-reported)"}; the ×N comparison needs 5 passes by others on this model.`
         : "Efficiency appears once passes report tokens.",
   ];
+  if (Object.keys(card.leagues ?? {}).length > 1) parts.push("Score adds every league on the Global scale (anchor challenges).");
   if (card.range !== null) parts.push(`Range ${fmt(card.range, 0)}/100: categories passed, weighted by difficulty.`);
   const extras = [card.seconds_per_pass !== null && `${fmt(card.seconds_per_pass, 0)}s per pass`, card.cost_per_pass !== null && `~$${Number(card.cost_per_pass).toFixed(3)} per pass`].filter(Boolean);
   return [...parts, extras.length ? `${extras.join(" · ")}.` : ""].join(" ");

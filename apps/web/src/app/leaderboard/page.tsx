@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { liftTrust, PROFESSIONS, type LiftTrust } from "@arena/core";
+import { LEAGUES, leagueInfo, liftTrust, PROFESSIONS, type League, type LiftTrust } from "@arena/core";
 import { SpriteView } from "@/components/sprite";
 import { efficiencyLabel, fmt, reliabilityLabel, signed } from "@/lib/cards";
 import { AutoSubmitSelect } from "@/components/auto-submit-select";
@@ -11,23 +11,26 @@ import { getViewer } from "@/lib/session";
 import { JsonLd } from "@/components/json-ld";
 import { absoluteUrl, pageMeta } from "@/lib/site";
 
-const LEAGUE_META = {
-  overall: { title: "AI Setup Leaderboard", description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the same client with nothing added." },
-  global: { title: "Global League Leaderboard", description: "Global League rankings of AI coding setups on output-verified logic, algorithm and data challenges, by score, Lift, Reliability, Efficiency and Range." },
-  thai: { title: "Thai League Leaderboard", description: "Thai League rankings of AI setups on Thai baht text, Buddhist-era dates, Thai ID checksums, addresses and VAT/withholding tax challenges." },
+const OVERALL_META = {
+  title: "AI Setup Leaderboard",
+  description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the same client with nothing added.",
 };
+const leagueMeta = (id: League | undefined) => {
+  const l = id && leagueInfo(id);
+  if (!l) return OVERALL_META;
+  return {
+    title: l.kind === "global" ? "Global League Leaderboard" : `${l.name} Leaderboard`,
+    description: `${l.name} rankings of AI setups: ${l.description} By score, Lift, Reliability, Efficiency and Range.`,
+  };
+};
+const parseLeague = (v: string | undefined) => (v && leagueInfo(v) ? (v as League) : undefined);
 
 export async function generateMetadata({ searchParams }: PageProps<"/leaderboard">) {
-  const { league } = await searchParams;
-  const key = league === "global" || league === "thai" ? league : "overall";
-  return pageMeta({ ...LEAGUE_META[key], path: key === "overall" ? "/leaderboard" : `/leaderboard?league=${key}` });
+  const league = parseLeague(one((await searchParams).league));
+  return pageMeta({ ...leagueMeta(league), path: league ? `/leaderboard?league=${league}` : "/leaderboard" });
 }
 
-const TABS = [
-  { league: undefined, label: "Overall" },
-  { league: "global", label: "Global" },
-  { league: "thai", label: "Thai League" },
-] as const;
+const TABS = [{ league: undefined, label: "Overall" }, ...LEAGUES.map((l) => ({ league: l.id as League, label: l.name }))];
 
 const SORTS = [
   { id: "score", label: "Score" },
@@ -45,7 +48,7 @@ const DIVISIONS = [
 ] as const;
 type Division = "duo" | "autonomous";
 
-type Filters = { league?: "global" | "thai"; sort: Sort; division?: Division; model?: string; profession?: string };
+type Filters = { league?: League; sort: Sort; division?: Division; model?: string; profession?: string };
 
 function href(f: Filters, change: Partial<Filters>) {
   const next = { ...f, ...change };
@@ -69,14 +72,14 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
   const rawDivision = one(sp.division);
   const rawProfession = one(sp.profession);
   const f: Filters = {
-    league: rawLeague === "global" || rawLeague === "thai" ? rawLeague : undefined,
+    league: parseLeague(rawLeague),
     sort: SORTS.some((x) => x.id === rawSort) ? (rawSort as Sort) : "score",
     division: rawDivision === "duo" || rawDivision === "autonomous" ? rawDivision : undefined,
     model: one(sp.model)?.slice(0, 80) || undefined,
     profession: PROFESSIONS.some((p) => p.id === rawProfession) ? rawProfession : undefined,
   };
   const db = createPublicClient();
-  const [{ data: rows }, { data: models }, viewer] = await Promise.all([
+  const [{ data: rows }, { data: models }, { data: factors }, viewer] = await Promise.all([
     db.rpc("leaderboard", {
       p_league: f.league,
       p_limit: 100,
@@ -86,6 +89,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
       p_profession: f.profession,
     }),
     db.rpc("leaderboard_models"),
+    db.rpc("league_factors"),
     getViewer(),
   ]);
   const division = DIVISIONS.find((d) => d.id === f.division)!;
@@ -107,12 +111,12 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
       }
     >
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold">{LEAGUE_META[f.league ?? "overall"].title}</h1>
+      <h1 className="text-2xl font-semibold">{leagueMeta(f.league).title}</h1>
       {!!rows?.length && !filtered && f.sort === "score" && (
         <JsonLd
           data={{
             "@type": "ItemList",
-            name: LEAGUE_META[f.league ?? "overall"].title,
+            name: leagueMeta(f.league).title,
             itemListOrder: "https://schema.org/ItemListOrderDescending",
             numberOfItems: rows.length,
             itemListElement: rows.slice(0, 50).map((r, i) => ({ "@type": "ListItem", position: r.rank ?? i + 1, name: r.display_name ?? r.username, url: absoluteUrl(`/u/${r.username}`) })),
@@ -179,6 +183,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
           )}
         </form>
         {division.hint && <p className="text-xs opacity-60">{division.hint}</p>}
+        {!f.league && f.sort === "score" && <ScaleNote factors={factors ?? []} />}
       </div>
       {!rows?.length ? (
         <p className="opacity-70">{filtered ? "Nobody matches these filters yet." : "No passed challenges yet. Join, connect your AI and be the first on the board."}</p>
@@ -242,4 +247,19 @@ function LiftMark({ trust }: { trust: LiftTrust | null }) {
   if (trust === "verified") return <span title="CLI-verified" className="ml-1 text-emerald-500">✓</span>;
   if (trust === "community") return <span title="vs community median" className="ml-1 opacity-60">†</span>;
   return null;
+}
+
+/** How Overall adds leagues together: each regional league's scores × its anchor factor. */
+function ScaleNote({ factors }: { factors: { league: string; factor: number; builders: number }[] }) {
+  const regional = factors.filter((f) => leagueInfo(f.league)?.kind === "regional");
+  if (!regional.length) return null;
+  return (
+    <p className="text-xs opacity-60">
+      Overall puts every league on the Global scale with anchor challenges (played in every league):{" "}
+      {regional
+        .map((f) => `${leagueInfo(f.league)!.name} ×${Number(f.factor).toFixed(2)}${f.builders < 5 ? ` (needs 5 builders on both, ${f.builders} so far)` : ` (${f.builders} builders)`}`)
+        .join(" · ")}
+      .
+    </p>
+  );
 }

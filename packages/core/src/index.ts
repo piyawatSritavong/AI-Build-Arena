@@ -1,7 +1,20 @@
 // Package contracts shared by apps/web, packages/mcp, packages/challenges, packages/loadout.
 // Changing these is a cross-team change: update all implementers in the same PR.
 
-export type League = "global" | "thai";
+/**
+ * League registry = source of truth (synced to public.leagues by `pnpm --filter @arena/challenges sync`).
+ * Global = language-neutral challenges. Regional = a country's own language and rules (community-authored later).
+ * Anchor challenges (Global challenges with `anchor: true`) are played in every league so regional scores can be
+ * put on the Global scale. Adding a region: a value in the public.league enum + an entry here + its challenges.
+ */
+export const LEAGUES = [
+  { id: "global", kind: "global", region: null, name: "Global", short: "", locale: "en", description: "Language-neutral logic, algorithm and data challenges." },
+  { id: "thai", kind: "regional", region: "TH", name: "Thai League", short: "TH", locale: "th", description: "Thai baht text, Buddhist-era dates, Thai ID checksums, addresses and VAT / withholding tax." },
+] as const;
+export type League = (typeof LEAGUES)[number]["id"];
+export type LeagueInfo = (typeof LEAGUES)[number];
+export const LEAGUE_IDS = LEAGUES.map((l) => l.id) as [League, ...League[]];
+export const leagueInfo = (id: string): LeagueInfo | undefined => LEAGUES.find((l) => l.id === id);
 
 /** JSON-serialisable value handed to / received from the contestant's AI. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
@@ -16,6 +29,8 @@ export interface ChallengeDefinition<Input extends Json = Json, Answer extends J
   summary: string; // one line for list_challenges / leaderboard
   difficulty: 1 | 2 | 3 | 4 | 5;
   timeLimitSeconds: number;
+  /** Anchor: a Global challenge every league also plays, used to put regional scores on one scale. */
+  anchor?: boolean;
   /** Markdown instructions shown via MCP get_challenge. Must state the exact answer format. */
   prompt: string;
   /** Deterministic: same seed => same input and expected answer. */

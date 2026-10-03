@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LEAGUES } from "@arena/core";
 import { bahtText, challenges, computeScore, createRng, normalizedGain, wilsonLower } from "./index";
 
 describe("rng", () => {
@@ -94,5 +95,21 @@ describe("reference solvers", () => {
     expect(invoiceTotals({ items: [{ description: "x", amount: 10700 }], vat_mode: "inclusive", wht_rate: 3 })).toEqual({ base: 10000, vat: 700, wht: 300, net: 10400 });
     expect(invoiceTotals({ items: [{ description: "x", amount: 1000.5 }], vat_mode: "exclusive", wht_rate: 0 })).toEqual({ base: 1000.5, vat: 70.04, wht: 0, net: 1070.54 });
     expect(invoiceTotals({ items: [{ description: "x", amount: 100 }], vat_mode: "none", wht_rate: 5 })).toEqual({ base: 100, vat: 0, wht: 5, net: 95 });
+  });
+});
+
+describe("leagues + anchors", () => {
+  it("every challenge belongs to a registered league", () => {
+    const ids = LEAGUES.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const c of challenges) expect(ids).toContain(c.league);
+    expect(LEAGUES.filter((l) => l.kind === "global")).toHaveLength(1);
+    for (const l of LEAGUES) expect(l.kind === "global" ? l.region === null : /^[A-Z]{2}$/.test(l.region ?? "")).toBe(true);
+  });
+  it("anchors are language-neutral Global challenges across several categories", () => {
+    const anchors = challenges.filter((c) => c.anchor);
+    expect(anchors.length).toBeGreaterThanOrEqual(3);
+    for (const a of anchors) expect(a.league).toBe("global");
+    expect(new Set(anchors.map((a) => a.category)).size).toBeGreaterThanOrEqual(2);
   });
 });

@@ -1,3 +1,4 @@
+import type { League } from "./index";
 // Hobby Pixel: "form is yours, aura is earned". Sprites are presets (12x12, '.' = transparent).
 
 export interface Sprite {
@@ -109,7 +110,9 @@ export interface ProfileCard {
   top_category: string | null;
   global_rank: number | null;
   thai_rank: number | null;
-  leagues: Partial<Record<"global" | "thai", number>>;
+  leagues: Partial<Record<League, number>>; // passes per league
+  league_ranks: Partial<Record<League, number>>;
+  anchors_passed: number;
 }
 
 export type LiftTrust = "verified" | "self-reported" | "community";

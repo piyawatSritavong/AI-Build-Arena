@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Database } from "@arena/db";
 import { getChallenge } from "@arena/challenges";
 import { startAttempt, submitAttempt } from "./arena";
-import type { ResultSource } from "@arena/core";
+import { LEAGUE_IDS, leagueInfo, type ResultSource } from "@arena/core";
 
 export interface ArenaContext {
   db: SupabaseClient<Database>; // service role: every query below must scope by userId
@@ -27,13 +27,14 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     "list_challenges",
     {
       title: "List challenges",
-      description: "List active SetupTier challenges. Pick one, then call get_challenge.",
-      inputSchema: { league: z.enum(["global", "thai"]).optional().describe("Filter by league") },
+      description:
+        "List active SetupTier challenges. Pick one, then call get_challenge. Anchor challenges (is_anchor) are played in every league: they put regional scores on the Global scale.",
+      inputSchema: { league: z.enum(LEAGUE_IDS).optional().describe("Filter by league; a regional league also lists the anchor challenges") },
       annotations: { readOnlyHint: true },
     },
     async ({ league }) => {
-      let q = db.from("challenges").select("id, league, category, title, summary, difficulty, time_limit_seconds").eq("is_active", true).order("difficulty");
-      if (league) q = q.eq("league", league);
+      let q = db.from("challenges").select("id, league, category, title, summary, difficulty, time_limit_seconds, is_anchor").eq("is_active", true).order("difficulty");
+      if (league) q = leagueInfo(league)?.kind === "regional" ? q.or(`league.eq.${league},is_anchor.eq.true`) : q.eq("league", league);
       const { data, error } = await q;
       if (error) return fail("Could not load challenges.");
       return json(data.filter((c) => getChallenge(c.id)));

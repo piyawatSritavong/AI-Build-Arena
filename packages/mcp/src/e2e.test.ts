@@ -14,6 +14,7 @@ const db = url ? createClient<Database>(process.env.SUPABASE_URL!, process.env.S
 describe.skipIf(!url)("MCP e2e", () => {
   let userId = "";
   let peerId = "";
+  const linkIds: string[] = [];
   let client: Client;
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const r = (await client.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean };
@@ -35,6 +36,7 @@ describe.skipIf(!url)("MCP e2e", () => {
     await client?.close();
     if (userId) await db.auth.admin.deleteUser(userId);
     if (peerId) await db.auth.admin.deleteUser(peerId);
+    for (const id of linkIds) await db.auth.admin.deleteUser(id);
   });
 
   it("rejects a bad token", async () => {
@@ -203,6 +205,43 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect((await board({ p_profession: "programmer" })).map((r) => r.username)).toEqual([profile!.username]);
     const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
     expect(card).toMatchObject({ range_categories: 1, range_total: total, professions: ["programmer"] });
+  });
+
+  it("lists anchors in regional leagues and scales Overall by the anchor factor", async () => {
+    const thai = await call("list_challenges", { league: "thai" });
+    const listed = Object.values(thai).filter(Boolean) as { id: string; league: string; is_anchor: boolean }[];
+    expect(listed.filter((c) => c.league === "thai")).toHaveLength(5);
+    expect(listed.filter((c) => c.is_anchor).map((c) => c.id).sort()).toEqual(["bracket-balance", "csv-revenue", "interval-merge"]);
+
+    // 5 builders on a fresh model play an anchor (90) and a Thai challenge (60): Thai is harder → factor 90 / 60 = 1.5.
+    const model = `e2e-link-${Date.now()}`;
+    const now = new Date().toISOString();
+    for (let i = 0; i < 5; i++) {
+      const { data } = await db.auth.admin.createUser({ email: `e2e-link-${i}-${Date.now()}@arena.test`, email_confirm: true, user_metadata: { user_name: `e2e-link-${i}` } });
+      const id = data.user!.id;
+      linkIds.push(id);
+      const { data: b } = await db.from("builds").insert({ user_id: id, name: "link", base_model: model }).select("id").single();
+      const { data: v } = await db.from("build_variants").select("id").eq("build_id", b!.id).eq("kind", "full").single();
+      const row = (challenge_id: string, score: number) => ({
+        user_id: id, build_id: b!.id, variant_id: v!.id, challenge_id, challenge_version: getChallenge(challenge_id)!.version,
+        seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, status: "passed" as const, correct: true, score, source: "cli" as const,
+      });
+      expect((await db.from("attempts").insert([row("bracket-balance", 90), row("thai-baht-text", 60)])).error).toBeNull();
+    }
+    const { data: factors } = await db.rpc("league_factors");
+    const th = factors!.find((f) => f.league === "thai")!;
+    expect(th.builders).toBeGreaterThanOrEqual(5);
+    expect(Number(factors!.find((f) => f.league === "global")!.factor)).toBe(1);
+    // Other e2e users may also have anchor + Thai runs, so check the formula rather than an exact 1.5.
+    expect(Number(th.factor)).toBeCloseTo(Math.min(2, Math.max(0.5, Number(th.anchor_mean) / Number(th.league_mean))), 2);
+
+    const overall = (await db.rpc("leaderboard", { p_model: model })).data!;
+    expect(overall).toHaveLength(5);
+    for (const r of overall) expect(Number(r.total_score)).toBeCloseTo(90 + 60 * Number(th.factor), 1);
+    const thaiOnly = (await db.rpc("leaderboard", { p_model: model, p_league: "thai" })).data!;
+    for (const r of thaiOnly) expect(Number(r.total_score)).toBe(60); // inside a league nothing is scaled
+    const { data: card } = await db.rpc("profile_card", { p_username: overall[0]!.username });
+    expect(card).toMatchObject({ anchors_passed: 1, league_ranks: { global: expect.any(Number), thai: expect.any(Number) } });
   });
 
   it("caps unfinished attempts at 3 and records events", async () => {
