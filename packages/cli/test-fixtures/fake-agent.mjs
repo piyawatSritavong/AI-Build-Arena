@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Stand-in for `claude -p --output-format json` in tests. Full solves sum-of-evens; Stock answers wrong.
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
 if (args[0] === "--version") {
@@ -18,6 +18,30 @@ if (prompt.includes("SETUPTIER PROBE")) {
 }
 const stock = args.includes("--strict-mcp-config");
 const input = JSON.parse(readFileSync("input.json", "utf8"));
+
+// Memory Fitness: Full keeps the facts in a "memory" outside the workspace (FAKE_MEMORY_DIR); Stock has no memory.
+if (input.questions) {
+  const RULES = [
+    [/\bport\b/, /port (\d+)/], [/weekday/, /only on (\w+)/], [/on-call/, /quarter is ([^.]+)\./], [/database/, /named (\S+)\./],
+    [/feature flag/, /flag (ff_\w+)/], [/error code/, /(E-\d+)/], [/release/, /(v\d+\.\d+\.\d+)/], [/region/, /the (\S+) region/],
+    [/channel/, /#([\w-]+)/], [/bucket/, /bucket (\S+)\./], [/reviews/, /needs (\d+) approving/], [/mascot/, /mascot is a (\w+)/],
+  ];
+  const memFile = `${process.env.FAKE_MEMORY_DIR}/memory.json`;
+  let facts = input.facts;
+  if (facts && !stock) writeFileSync(memFile, JSON.stringify(facts));
+  if (!facts && !stock) facts = existsSync(memFile) ? JSON.parse(readFileSync(memFile, "utf8")) : [];
+  const recall = (q) => {
+    const rule = RULES.find(([k]) => k.test(q));
+    for (const f of facts ?? []) {
+      const m = rule && f.match(rule[1]);
+      if (m) return m[1];
+    }
+    return "";
+  };
+  writeFileSync("answer.json", JSON.stringify(Object.fromEntries(Object.entries(input.questions).map(([id, q]) => [id, recall(q)]))));
+  out("done");
+  process.exit(0);
+}
 const answer = stock ? 0 : input.numbers.filter((n) => n % 2 === 0).reduce((a, b) => a + b, 0);
 writeFileSync("answer.json", JSON.stringify(answer));
 out("done");

@@ -60,6 +60,15 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
             </div>
           ))}
         </dl>
+        {card.memory !== null && (
+          <p className="rounded-lg border border-foreground/10 px-3 py-1.5 text-sm">
+            <span className="opacity-60">Memory</span> <span className="font-semibold">{fmt(card.memory, 0)}%</span>{" "}
+            <span className="opacity-60">
+              of project facts recalled after {fmt(card.memory_days, 0)} days in a new session
+              {card.memory_retention !== null && ` (${fmt(card.memory_retention, 0)}% of learn day)`}
+            </span>
+          </p>
+        )}
         <p className="text-[11px] opacity-50">
           {cardFootnote(card, trust && LIFT_TRUST_LABEL[trust])} * Model and gear are self-declared. Scores come from verified answers.
         </p>

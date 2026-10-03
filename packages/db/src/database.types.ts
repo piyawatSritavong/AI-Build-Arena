@@ -282,6 +282,49 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"memory_enrollments": {
+                  Row: {
+                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"exam_accuracy": number | null,"exam_attempt_id": string | null,"exam_closes_at": string | null,"exam_due_at": string | null,"examined_at": string | null,"id": string,"issued_at": string,"learn_accuracy": number | null,"learn_expires_at": string,"learned_at": string | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["memory_status"],"user_id": string,"variant_id": string | null
+                  }
+                  Insert: {
+                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"exam_accuracy"?: number | null,"exam_attempt_id"?: string | null,"exam_closes_at"?: string | null,"exam_due_at"?: string | null,"examined_at"?: string | null,"id"?: string,"issued_at"?: string,"learn_accuracy"?: number | null,"learn_expires_at": string,"learned_at"?: string | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["memory_status"],"user_id": string,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"exam_accuracy"?: number | null,"exam_attempt_id"?: string | null,"exam_closes_at"?: string | null,"exam_due_at"?: string | null,"examined_at"?: string | null,"id"?: string,"issued_at"?: string,"learn_accuracy"?: number | null,"learn_expires_at"?: string,"learned_at"?: string | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["memory_status"],"user_id"?: string,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "memory_enrollments_build_id_fkey"
+      columns: ["build_id"]
+isOneToOne: false
+      referencedRelation: "builds"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "memory_enrollments_challenge_id_fkey"
+      columns: ["challenge_id"]
+isOneToOne: false
+      referencedRelation: "challenges"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "memory_enrollments_exam_attempt_id_fkey"
+      columns: ["exam_attempt_id"]
+isOneToOne: false
+      referencedRelation: "attempts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "memory_enrollments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "memory_enrollments_variant_id_fkey"
+      columns: ["variant_id"]
+isOneToOne: false
+      referencedRelation: "build_variants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "avatar_url": string | null,"bio": string | null,"created_at": string,"display_name": string | null,"id": string,"professions": (string)[],"trust_score": number,"updated_at": string,"username": string
@@ -349,6 +392,11 @@ isOneToOne: false
               "basis": string,"runs": number,"score": number,"verified": boolean
             }[]
                            },
+"memory_stats":
+{ Args: { "p_user": string }; Returns: {
+              "days": number,"exam_accuracy": number,"exam_closes_at": string,"exam_due_at": string,"examined_at": string,"learn_accuracy": number,"learned_at": string,"retention": number,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["memory_status"],"variant": string
+            }[]
+                           },
 "normalized_gain":
 { Args: { "p_base": number,"p_full": number }; Returns: number
                            },
@@ -388,7 +436,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "attempt_mode": "ranked"|"practice","attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai","loadout_visibility": "hidden"|"categories"|"names"|"install","result_source": "mcp"|"cli","scan_source": "paste"|"cli","variant_kind": "full"|"stock"|"ablation"|"custom"
+            "attempt_mode": "ranked"|"practice","attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai","loadout_visibility": "hidden"|"categories"|"names"|"install","memory_status": "learning"|"waiting"|"examined"|"expired","result_source": "mcp"|"cli","scan_source": "paste"|"cli","variant_kind": "full"|"stock"|"ablation"|"custom"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -508,7 +556,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "attempt_mode": ["ranked", "practice"],"attempt_status": ["issued", "passed", "failed", "expired"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"],"loadout_visibility": ["hidden", "categories", "names", "install"],"result_source": ["mcp", "cli"],"scan_source": ["paste", "cli"],"variant_kind": ["full", "stock", "ablation", "custom"]
+            "attempt_mode": ["ranked", "practice"],"attempt_status": ["issued", "passed", "failed", "expired"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"],"loadout_visibility": ["hidden", "categories", "names", "install"],"memory_status": ["learning", "waiting", "examined", "expired"],"result_source": ["mcp", "cli"],"scan_source": ["paste", "cli"],"variant_kind": ["full", "stock", "ablation", "custom"]
           }
         }
 } as const

@@ -65,6 +65,7 @@ export const AURA: Record<string, { label: string; color: string }> = {
   logic: { label: "Logic", color: "#38bdf8" },
   algorithm: { label: "Algorithm", color: "#a78bfa" },
   data: { label: "Data", color: "#34d399" },
+  memory: { label: "Memory", color: "#f472b6" },
   thai: { label: "Thai League", color: "#fbbf24" },
   none: { label: "Unawakened", color: "#94a3b8" },
 };
@@ -113,6 +114,9 @@ export interface ProfileCard {
   leagues: Partial<Record<League, number>>; // passes per league
   league_ranks: Partial<Record<League, number>>;
   anchors_passed: number;
+  memory: number | null; // Memory Fitness: % of facts recalled at the exam (latest Full round)
+  memory_retention: number | null; // exam ÷ learn-day quiz, %
+  memory_days: number | null; // days between learn day and exam
 }
 
 export type LiftTrust = "verified" | "self-reported" | "community";

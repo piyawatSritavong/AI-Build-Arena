@@ -74,10 +74,10 @@ describe("wilsonLower", () => {
 import { invoiceTotals, thaiIdCheckDigit, toRoman } from "./index";
 
 describe("registry", () => {
-  it("has 10 global + 5 thai with unique ids and sane metadata", () => {
-    expect(challenges.filter((c) => c.league === "global")).toHaveLength(10);
+  it("has 11 global (incl. Memory Fitness) + 5 thai with unique ids and sane metadata", () => {
+    expect(challenges.filter((c) => c.league === "global")).toHaveLength(11);
     expect(challenges.filter((c) => c.league === "thai")).toHaveLength(5);
-    expect(new Set(challenges.map((c) => c.id)).size).toBe(15);
+    expect(new Set(challenges.map((c) => c.id)).size).toBe(16);
     for (const c of challenges) expect(c.timeLimitSeconds).toBeGreaterThan(0);
   });
   it("keeps inputs small enough for an MCP tool result (< 40 KB)", () => {
@@ -111,5 +111,35 @@ describe("leagues + anchors", () => {
     expect(anchors.length).toBeGreaterThanOrEqual(3);
     for (const a of anchors) expect(a.league).toBe("global");
     expect(new Set(anchors.map((a) => a.category)).size).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("memory fitness", () => {
+  const def = challenges.find((c) => c.id === "memory-fitness")!;
+  it("learn day shows the facts and a 4-question quiz; the exam asks the other 8 without the facts", () => {
+    const learn = def.memory!.learn("seed-1");
+    const exam = def.generate("seed-1");
+    const li = learn.input as { facts: string[]; questions: Record<string, string> };
+    const ei = exam.input as { questions: Record<string, string>; facts?: unknown };
+    expect(li.facts).toHaveLength(12);
+    expect(Object.keys(li.questions)).toHaveLength(4);
+    expect(Object.keys(ei.questions)).toHaveLength(8);
+    expect(ei.facts).toBeUndefined();
+    // Every expected answer appears in exactly the learned facts; quiz and exam ask about different facts.
+    const facts = li.facts.join("\n");
+    for (const v of [...Object.values(learn.expected as Record<string, string>), ...Object.values(exam.expected as Record<string, string>)]) expect(facts).toContain(v);
+    const quizQ = new Set(Object.values(li.questions));
+    for (const q of Object.values(ei.questions)) expect(quizQ.has(q)).toBe(false);
+    expect(def.memory!.learn("seed-1")).toEqual(learn); // deterministic
+  });
+  it("grades recall leniently on case/spacing and passes at 6 of 8", () => {
+    const exam = def.generate("seed-2");
+    const exp = exam.expected as Record<string, string>;
+    const keys = Object.keys(exp);
+    expect(def.verify(Object.fromEntries(keys.map((k) => [k, ` ${exp[k]!.toUpperCase()} `])), exp)).toMatchObject({ correct: true, accuracy: 1 });
+    const six = Object.fromEntries(keys.map((k, i) => [k, i < 6 ? exp[k]! : "no idea"]));
+    expect(def.verify(six, exp)).toMatchObject({ correct: true, accuracy: 0.75 });
+    const five = Object.fromEntries(keys.map((k, i) => [k, i < 5 ? exp[k]! : ""]));
+    expect(def.verify(five, exp).correct).toBe(false);
   });
 });

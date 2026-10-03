@@ -33,4 +33,5 @@ export async function clearCredentials() {
 }
 
 export const credentialsPath = file;
+export const configDir = dir;
 export const baseUrl = (c?: Credentials | null) => (process.env.SETUPTIER_URL ?? c?.url ?? DEFAULT_URL).replace(/\/$/, "");

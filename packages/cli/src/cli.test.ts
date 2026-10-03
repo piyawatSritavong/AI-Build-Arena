@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@arena/db";
 import { scanMachine } from "./scan";
 import { runSuite, summarize } from "./run";
+import { describeRounds, memoryRounds } from "./memory";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -165,6 +166,48 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
       delete process.env.SETUPTIER_AGENT_CMD;
       delete process.env.FAKE_AGENT_LOG;
       await rm(log, { force: true });
+    }
+  });
+
+  it("runs Memory Fitness: learn day, exam closed until due, then recall without the facts", async () => {
+    const start = (await (await post("/api/cli/device", { client_name: "e2e memory" })).json()) as { device_code: string; user_code: string };
+    await db.from("cli_device_codes").update({ user_id: userId, approved_at: new Date().toISOString() }).eq("user_code", start.user_code);
+    const { token } = (await (await post("/api/cli/token", { device_code: start.device_code })).json()) as { token: string };
+    const creds = { url: url!, token, username: "cli-e2e" };
+    const config = await mkdtemp(join(tmpdir(), "setuptier-config-"));
+    const memory = await mkdtemp(join(tmpdir(), "fake-memory-"));
+    Object.assign(process.env, { SETUPTIER_CONFIG_DIR: config, FAKE_MEMORY_DIR: memory, SETUPTIER_AGENT_CMD: fileURLToPath(new URL("../test-fixtures/fake-agent.mjs", import.meta.url)) });
+    const opts = { challenges: ["memory-fitness"], variants: ["full", "stock"] as ("full" | "stock")[], runs: 1, mode: "ranked" as const, budgetTokens: 100_000, probe: false };
+    try {
+      // Learn day: both read the facts and pass the quiz; only Full keeps them (in its memory, outside the folder).
+      const learn = await runSuite(creds, opts, () => {});
+      expect(learn.rows.map((r) => `${r.variant}:${r.phase}:${r.correct}`)).toEqual(["full:learn:true", "stock:learn:true"]);
+      expect(learn.rows[0]!.examDueAt).toBeTruthy();
+      for (const v of ["full", "stock"]) expect(await readdir(join(config, "memory", v))).toEqual([]); // facts deleted
+      const rounds = await memoryRounds(creds);
+      expect(rounds.map((r) => `${r.variant}:${r.status}`).sort()).toEqual(["full:waiting", "stock:waiting"]);
+      expect(describeRounds(rounds)).toContain("exam opens");
+
+      // Exam not open yet.
+      const early = await runSuite(creds, opts, () => {});
+      expect(early.rows.every((r) => r.error?.includes("Memory exam opens"))).toBe(true);
+
+      // Three days later (moved in the DB): Full recalls everything, Stock nothing → Lift ≈ +100, verified.
+      await db.from("memory_enrollments").update({ exam_due_at: new Date(Date.now() - 60_000).toISOString() }).eq("user_id", userId);
+      const exam = await runSuite(creds, opts, () => {});
+      expect(exam.rows.map((r) => `${r.variant}:${r.phase}:${r.correct}`)).toEqual(["full:exam:true", "stock:exam:false"]);
+      expect(exam.rows[1]!.challengeLift).toMatchObject({ basis: "own", verified: true });
+      expect(exam.rows[1]!.challengeLift!.lift).toBeGreaterThan(95);
+
+      const after = await memoryRounds(creds);
+      expect(after.map((r) => `${r.variant}:${r.status}:${r.exam_accuracy}`).sort()).toEqual(["full:examined:1", "stock:examined:0"]);
+      const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+      const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+      expect(card).toMatchObject({ memory: 100, memory_retention: 100 });
+    } finally {
+      for (const k of ["SETUPTIER_CONFIG_DIR", "FAKE_MEMORY_DIR", "SETUPTIER_AGENT_CMD"]) delete process.env[k];
+      await rm(config, { recursive: true, force: true });
+      await rm(memory, { recursive: true, force: true });
     }
   });
 });

@@ -31,6 +31,16 @@ export interface ChallengeDefinition<Input extends Json = Json, Answer extends J
   timeLimitSeconds: number;
   /** Anchor: a Global challenge every league also plays, used to put regional scores on one scale. */
   anchor?: boolean;
+  /**
+   * Memory Fitness: a two-phase challenge. Learn day = `memory.learn(seed)` (facts + a short quiz, the day-1 baseline);
+   * after `memory.days` days, in a new session without the facts, the exam = `generate(seed)` with `prompt`.
+   */
+  memory?: {
+    days: number;
+    examWindowDays: number; // the exam stays open this long after it is due
+    learnPrompt: string;
+    learn(seed: string): { input: Input; expected: Answer };
+  };
   /** Markdown instructions shown via MCP get_challenge. Must state the exact answer format. */
   prompt: string;
   /** Deterministic: same seed => same input and expected answer. */

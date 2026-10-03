@@ -46,7 +46,7 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     {
       title: "Start a challenge attempt",
       description:
-        "Starts a timed attempt and returns the instructions plus a freshly generated input. Solve it locally (write and run code), then call submit_answer with the attempt_id. Each attempt has its own random input and accepts one submission.",
+        "Starts a timed attempt and returns the instructions plus a freshly generated input. Solve it locally (write and run code), then call submit_answer with the attempt_id. Each attempt has its own random input and accepts one submission. memory-fitness has two phases: the first call is the learn day (save the facts in your memory, answer the quiz); calling it again once the exam is due (3 days later, in a new session) starts the exam.",
       inputSchema: {
         challenge_id: z.string().describe("Id from list_challenges"),
         variant: z
@@ -97,11 +97,12 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     async () => {
       const { data, error } = await db.from("attempts").select("challenge_id, status, score").eq("user_id", userId).neq("status", "issued");
       if (error) return fail("Could not load stats.");
-      const [{ data: lifts }, { data: rel }, { data: eff }, { data: range }] = await Promise.all([
+      const [{ data: lifts }, { data: rel }, { data: eff }, { data: range }, { data: memory }] = await Promise.all([
         db.rpc("paired_lifts", { p_user: userId }),
         db.rpc("reliability_stats", { p_user: userId }).maybeSingle(),
         db.rpc("efficiency_stats", { p_user: userId }),
         db.rpc("range_stats", { p_user: userId }).maybeSingle(),
+        db.rpc("memory_stats", { p_user: userId }),
       ]);
       const liftOf = new Map((lifts ?? []).map((l) => [l.challenge_id, { lift: Number(l.lift), basis: l.basis, verified: l.verified }]));
       const per = new Map<string, { attempts: number; passed: number; best_score: number; lift: { lift: number; basis: string; verified: boolean } | null }>();
@@ -121,6 +122,22 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
           ? { lower_bound_pct: Number(rel.reliability), passes: rel.passes, runs: rel.runs, note: "95% Wilson lower bound over challenges run 3+ times" }
           : { lower_bound_pct: null, note: "Run a challenge 3+ times (mode practice is fine) to measure Reliability." },
         range: range ? { score: Number(range.range), categories_passed: range.categories_passed, categories: range.categories, note: "0–100, categories passed weighted by the hardest difficulty passed" } : null,
+        memory: Object.fromEntries(
+          (memory ?? []).map((m) => [
+            m.variant,
+            {
+              status: m.status,
+              learn_quiz_pct: m.learn_accuracy === null ? null : Math.round(Number(m.learn_accuracy) * 100),
+              exam_recall_pct: m.exam_accuracy === null ? null : Math.round(Number(m.exam_accuracy) * 100),
+              exam_due_at: m.exam_due_at,
+              exam_closes_at: m.exam_closes_at,
+              next_step:
+                m.status === "waiting"
+                  ? new Date(m.exam_due_at!) <= new Date() ? 'Exam is open: get_challenge("memory-fitness") in a new session.' : `Exam opens ${m.exam_due_at}.`
+                  : 'get_challenge("memory-fitness") starts a new round.',
+            },
+          ]),
+        ),
         efficiency: Object.fromEntries(
           (eff ?? []).map((e) => [e.challenge_id, { tokens_per_pass: e.tokens, seconds_per_pass: e.seconds, vs_model_median: e.efficiency, tokens_measured: e.tokens_measured }]),
         ),

@@ -4,6 +4,7 @@ import { api, ApiError } from "./api";
 import { baseUrl, clearCredentials, loadCredentials } from "./config";
 import { login } from "./login";
 import { describePayload, scanMachine } from "./scan";
+import { describeRounds, isDue, MEMORY_CHALLENGE, memoryReminder, memoryRounds } from "./memory";
 import { listChallenges, QUICK_SET, runSuite, summarize } from "./run";
 import { VERSION } from "./version";
 
@@ -27,6 +28,11 @@ Usage:
       --budget <tokens>            Stop starting runs past this many tokens (default 300000)
       --no-probe                   Skip the Stock check (what a "bare" run can still see)
       -y, --yes                    Start without asking
+  setuptier memory [start|exam]    Memory Fitness: can your setup remember across sessions?
+      (no argument)                Show your rounds and when the exam opens
+      start                        Learn day: your AI gets 12 project facts to keep in its memory + a quiz
+      exam                         3 days later, in a new session without the facts: recall them
+      (--variant, --model, --practice, --no-probe, -y work as for run; default Full + Stock)
   setuptier logout                 Forget the saved token on this computer
 
 What a scan sends: tool names, kinds and findings. Never commands, arguments, URLs,
@@ -83,6 +89,7 @@ async function main() {
 
     case "whoami": {
       const creds = await requireLogin();
+      await remind(creds);
       const me = await api<{ username: string }>(baseUrl(creds), "/api/cli/whoami", { token: creds.token });
       return console.log(`@${me.username} (${baseUrl(creds)})`);
     }
@@ -101,6 +108,7 @@ async function main() {
 
     case "run": {
       const creds = await requireLogin();
+      await remind(creds);
       const challenges = values.all ? await listChallenges(creds) : values.challenges ? values.challenges.split(",").map((c) => c.trim()).filter(Boolean) : QUICK_SET;
       const variants = values.variant === "full" ? (["full"] as const) : values.variant === "stock" ? (["stock"] as const) : (["full", "stock"] as const);
       const runs = Math.min(Math.max(Number(values.runs) || 1, 1), 5);
@@ -116,11 +124,49 @@ async function main() {
       return console.log(`\nTokens used: ${r.tokens.toLocaleString("en-US")}. Results: ${baseUrl(creds)}/me`);
     }
 
+    case "memory": {
+      const creds = await requireLogin();
+      const sub = positionals[1] ?? "status";
+      const rounds = await memoryRounds(creds);
+      console.log(describeRounds(rounds));
+      if (sub === "status") return;
+      if (sub !== "start" && sub !== "exam") throw new Error(`Unknown memory step "${sub}". Use start or exam.`);
+      const wanted: ("full" | "stock")[] = values.variant === "full" ? ["full"] : values.variant === "stock" ? ["stock"] : ["full", "stock"];
+      const round = (v: string) => rounds.find((r) => r.variant === v);
+      const variants = wanted.filter((v) => {
+        const r = round(v);
+        return sub === "start" ? !r || r.status === "learning" || r.status === "examined" || r.status === "expired" : !!r && isDue(r);
+      });
+      if (!variants.length) {
+        return console.log(sub === "start" ? "\nNothing to start: a round is already waiting for its exam." : "\nNo exam is open yet.");
+      }
+      console.log(
+        `\n${sub === "start" ? "Learn day" : "Exam"}: ${variants.join(" + ")} with your own Claude Code in a fixed folder (${variants.length} run${variants.length > 1 ? "s" : ""}).` +
+          (sub === "start" ? " Its files are deleted afterwards: only your setup's memory can carry the facts to the exam." : ""),
+      );
+      if (!values.yes && !(await confirm("Start?"))) return console.log("Cancelled.");
+      const budgetTokens = Math.max(Number(values.budget) || 300_000, 10_000);
+      const r = await runSuite(
+        creds,
+        { challenges: [MEMORY_CHALLENGE], variants, runs: 1, mode: values.practice ? "practice" : "ranked", model: values.model, budgetTokens, probe: sub === "start" && !values["no-probe"] },
+        (l) => console.log(l),
+      );
+      console.log(summarize(r.rows));
+      const due = r.rows.find((x) => x.examDueAt)?.examDueAt;
+      if (due) console.log(`\nExam opens ${new Date(due).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}. Run \`setuptier memory exam\` then (any SetupTier command will remind you).`);
+      return console.log(`Tokens used: ${r.tokens.toLocaleString("en-US")}. Results: ${baseUrl(creds)}/me`);
+    }
+
     default:
       console.error(`Unknown command "${command}".\n`);
       console.log(HELP);
       process.exitCode = 1;
   }
+}
+
+async function remind(creds: Awaited<ReturnType<typeof requireLogin>>) {
+  const line = await memoryReminder(creds);
+  if (line) console.log(`${line}\n`);
 }
 
 main().catch((e: unknown) => {

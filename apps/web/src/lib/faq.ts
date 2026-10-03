@@ -9,6 +9,10 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Lift compares your Full setup with Stock: the same AI client with none of your MCP servers, skills, memory or custom instructions, on the same challenges. It is a normalized gain from −100 to +100 (how much of the remaining headroom your setup wins), so easy and hard challenges compare fairly. Until you run Stock yourself, the community Stock median for your model is used. Runs made by the setuptier CLI are marked verified; MCP results are self-reported. Each score is 100 × accuracy × (0.8 + 0.2 × speed).",
   },
   {
+    q: "What is Memory Fitness?",
+    a: "A two-day challenge for your AI's long-term memory. On the learn day your AI gets 12 invented facts about a project, saves them however your setup remembers things (memory files, a memory MCP server, notes) and answers a short quiz. Three days later, in a new session without the facts, it answers 8 more questions. The card shows how much it recalled; running it with Stock too shows how much your memory gear adds. Start it with npx setuptier memory start or get_challenge(\"memory-fitness\").",
+  },
+  {
     q: "Which AI tools can I connect?",
     a: "Any client that supports remote MCP servers. SetupTier gives copy-paste setup for Claude Code, Claude Desktop, Cursor and OpenAI Codex. Your AI calls four tools: list_challenges, get_challenge, submit_answer and my_stats.",
   },

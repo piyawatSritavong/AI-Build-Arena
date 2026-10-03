@@ -6,6 +6,7 @@ import { api, ApiError } from "./api";
 import { agentLoggedIn, agentVersion, probeStock, runAgent, type StockProbe, type Variant } from "./agent";
 import type { Credentials } from "./config";
 import { baseUrl } from "./config";
+import { emptyDir, MEMORY_CHALLENGE, memoryWorkspace } from "./memory";
 
 /** Short health check: easy, fast challenges. `--all` runs every active challenge. */
 export const QUICK_SET = ["sum-of-evens", "bracket-balance", "roman-numerals"];
@@ -20,6 +21,7 @@ interface Started {
   instructions: string;
   input: Json;
   time_limit_seconds: number;
+  phase?: "learn" | "exam";
 }
 interface ChallengeLift {
   lift: number;
@@ -31,6 +33,7 @@ interface Submitted {
   score: number;
   lift: number | null;
   challenge_lift: ChallengeLift | null;
+  exam_due_at?: string;
 }
 
 export interface RunOptions {
@@ -51,12 +54,14 @@ export interface RunRow {
   tokens: number;
   seconds: number;
   challengeLift?: ChallengeLift | null; // the server's Paired Lift for the challenge after this run
+  phase?: "learn" | "exam"; // Memory Fitness
+  examDueAt?: string;
   error?: string;
 }
 
 export async function listChallenges(creds: Credentials) {
-  const r = await api<{ challenges: { id: string }[] }>(baseUrl(creds), "/api/cli/challenges");
-  return r.challenges.map((c) => c.id);
+  const r = await api<{ challenges: { id: string; category: string }[] }>(baseUrl(creds), "/api/cli/challenges");
+  return r.challenges.filter((c) => c.category !== "memory").map((c) => c.id); // Memory Fitness has its own command
 }
 
 export async function preflight() {
@@ -103,11 +108,15 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
           continue;
         }
 
-        const dir = await mkdtemp(join(tmpdir(), "setuptier-run-"));
+        // Memory Fitness keeps a fixed folder per variant (memory keyed by project survives); others get a fresh temp dir.
+        const isMemory = challenge === MEMORY_CHALLENGE;
+        const dir = isMemory ? await memoryWorkspace(variant) : await mkdtemp(join(tmpdir(), "setuptier-run-"));
+        const label = `${challenge}${started.phase ? ` (${started.phase})` : ""} [${variant}]`;
         try {
+          if (isMemory) await emptyDir(dir);
           await writeFile(join(dir, "TASK.md"), `# ${started.title}\n\n${started.instructions}\n`);
           await writeFile(join(dir, "input.json"), JSON.stringify(started.input));
-          log(`${challenge} [${variant}] running…`);
+          log(`${label} running…`);
           // Stop the agent a little before the server-side time limit so the submission still counts.
           const a = await runAgent({ variant, model, cwd: dir, prompt: PROMPT, timeoutMs: Math.max(30, started.time_limit_seconds - 15) * 1000 });
           spent += a.tokens;
@@ -117,10 +126,11 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
             token: creds.token,
             body: { answer: a.answer ?? "", tokens: a.tokens, cost_usd: a.costUsd ?? undefined, model: a.model ?? model, client },
           });
-          rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), challengeLift: s.challenge_lift, error: a.error });
-          log(`${challenge} [${variant}] ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
+          rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), challengeLift: s.challenge_lift, phase: started.phase, examDueAt: s.exam_due_at, error: a.error });
+          log(`${label} ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
         } finally {
-          await rm(dir, { recursive: true, force: true });
+          // Memory: the facts must not stay on disk for the exam.
+          await (isMemory ? emptyDir(dir) : rm(dir, { recursive: true, force: true }));
         }
       }
     }
@@ -140,7 +150,8 @@ export function summarize(rows: RunRow[]) {
   type Agg = { full: number[]; stock: number[]; passes: number; runs: number; passTokens: number[]; lift: ChallengeLift | null };
   const by = new Map<string, Agg>();
   for (const r of rows) {
-    const e = by.get(r.challenge) ?? { full: [], stock: [], passes: 0, runs: 0, passTokens: [], lift: null };
+    const key = r.phase === "learn" ? `${r.challenge} (learn)` : r.challenge;
+    const e = by.get(key) ?? { full: [], stock: [], passes: 0, runs: 0, passTokens: [], lift: null };
     if (r.score !== null) e[r.variant].push(r.score);
     if (r.variant === "full" && r.correct !== null) {
       e.runs++;
@@ -150,7 +161,7 @@ export function summarize(rows: RunRow[]) {
       }
     }
     if (r.challengeLift !== undefined) e.lift = r.challengeLift; // latest server value wins
-    by.set(r.challenge, e);
+    by.set(key, e);
   }
   const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const lines = ["", "Challenge             Full    Stock   Lift                 Full passes      Tokens/pass"];

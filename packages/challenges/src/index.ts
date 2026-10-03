@@ -1,5 +1,6 @@
 import type { ChallengeDefinition } from "@arena/core";
 import { bracketBalance, csvRevenue, gridShortestPath, intervalMerge, knapsack, logSessions, romanNumerals, topoOrder, wordFrequency } from "./defs/global";
+import { memoryFitness } from "./defs/memory";
 import { sumOfEvens } from "./defs/sum-of-evens";
 import { thaiAddressParse, thaiDateConvert, thaiIdChecksum, thaiVatWht } from "./defs/thai";
 import { thaiBahtText } from "./defs/thai-baht-text";
@@ -15,6 +16,7 @@ export { invoiceTotals, thaiIdCheckDigit } from "./defs/thai";
 export const challenges: ChallengeDefinition<any, any>[] = [
   sumOfEvens, bracketBalance, romanNumerals, intervalMerge, wordFrequency, csvRevenue, gridShortestPath, logSessions, topoOrder, knapsack,
   thaiBahtText, thaiDateConvert, thaiIdChecksum, thaiAddressParse, thaiVatWht,
+  memoryFitness,
 ];
 const byId = new Map(challenges.map((c) => [c.id, c]));
 export const getChallenge = (id: string) => byId.get(id);

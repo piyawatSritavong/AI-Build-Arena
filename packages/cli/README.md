@@ -25,6 +25,19 @@ user-level `CLAUDE.md`, so the result is labelled honestly. Runs use your own su
 `--budget` tokens, and never use `--dangerously-skip-permissions`: the agent may only read/write files and run
 `node` / `python` in the temporary folder.
 
+## Memory Fitness (`memory`)
+
+Can your setup remember across sessions?
+
+1. `npx setuptier memory start`: on the learn day your AI gets 12 invented project facts and a short quiz. It
+   saves the facts however your setup remembers things: memory files, a memory MCP server or notes. Each variant
+   runs in a fixed folder (`~/.config/setuptier/memory/<full|stock>`), so memory that Claude Code keeps per project
+   carries over. The folder's files are deleted after every run.
+2. Three days later, `npx setuptier memory exam` runs in a new session without the facts. Your AI answers 8 more
+   questions from memory, and the exam stays open for 7 days. Other `setuptier` commands remind you when it is open.
+
+Full vs Stock on the exam is the Lift your memory gear adds.
+
 ## What `scan` reads and sends
 
 Reads the configs of Claude Code (`~/.claude.json`, `~/.claude/settings.json`, `~/.claude/skills|agents|commands`),

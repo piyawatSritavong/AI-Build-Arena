@@ -49,7 +49,7 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(tools.map((t) => t.name).sort()).toEqual(["get_challenge", "list_challenges", "my_stats", "submit_answer"]);
     const list = await call("list_challenges");
     const ids = Object.values(list).filter(Boolean).map((c: any) => c.id);
-    expect(ids).toHaveLength(15);
+    expect(ids).toHaveLength(16);
     expect(ids).toEqual(expect.arrayContaining(["sum-of-evens", "thai-baht-text", "thai-vat-wht"]));
   });
 
@@ -175,7 +175,8 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(all).toMatchObject({ categories_passed: 1, categories: total });
     expect(Number(all!.range)).toBeCloseTo(100 / total, 1);
     const { data: global } = await db.rpc("range_stats", { p_user: userId, p_league: "global" }).single();
-    expect(Number(global!.range)).toBeCloseTo(100 / 3, 1); // logic, algorithm, data
+    const globalCats = new Set((await db.from("challenges").select("category").eq("is_active", true).eq("league", "global")).data!.map((c) => c.category)).size;
+    expect(Number(global!.range)).toBeCloseTo(100 / globalCats, 1); // logic, algorithm, data, memory
 
     const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
     const { data: peerProfile } = await db.from("profiles").select("username").eq("id", peerId).single();
@@ -242,6 +243,22 @@ describe.skipIf(!url)("MCP e2e", () => {
     for (const r of thaiOnly) expect(Number(r.total_score)).toBe(60); // inside a league nothing is scaled
     const { data: card } = await db.rpc("profile_card", { p_username: overall[0]!.username });
     expect(card).toMatchObject({ anchors_passed: 1, league_ranks: { global: expect.any(Number), thai: expect.any(Number) } });
+  });
+
+  it("runs the Memory Fitness learn day through MCP and keeps the exam closed until due", async () => {
+    const learn = await call("get_challenge", { challenge_id: "memory-fitness", mode: "practice" });
+    expect(learn).toMatchObject({ phase: "learn" });
+    expect(learn.input.facts).toHaveLength(12);
+    const again = await call("get_challenge", { challenge_id: "memory-fitness", mode: "practice" });
+    expect(again.attempt_id).toBe(learn.attempt_id); // same round until it is submitted
+    const r = await call("submit_answer", { attempt_id: learn.attempt_id, answer: JSON.stringify({ q1: "x" }) });
+    expect(r).toMatchObject({ phase: "learn", correct: false });
+    expect(r.lift_note).toContain("exam opens");
+    const early = await call("get_challenge", { challenge_id: "memory-fitness" });
+    expect(early.isError).toBe(true);
+    expect(early.error).toContain("Memory exam opens");
+    const stats = await call("my_stats");
+    expect(stats.memory.full).toMatchObject({ status: "waiting", learn_quiz_pct: 0, exam_recall_pct: null });
   });
 
   it("caps unfinished attempts at 3 and records events", async () => {
