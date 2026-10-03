@@ -109,3 +109,30 @@ describe("registry + trend", () => {
     expect(r.gemsToTry.map((g) => g.id)).not.toContain("rtk");
   });
 });
+
+describe("scan payload (CLI upload)", () => {
+  it("never carries paths, URLs or secrets", async () => {
+    const { sanitizeLabel, toScanPayload, parseScanPayload } = await import("./scan-payload");
+    expect(sanitizeLabel("PreToolUse: node /Users/piya/secret-project/hooks/check.js")).toBe("PreToolUse: node check.js");
+    expect(sanitizeLabel("C:\\Users\\piya\\work\\tool.exe --flag --api-key=abc123 -v")).toBe("tool.exe");
+    expect(sanitizeLabel("remote https://mcp.example.com/sse?token=abc")).toBe("remote mcp.example.com");
+    expect(sanitizeLabel(`token ${FAKE_GH}`)).toBe("token [redacted]");
+
+    const config = JSON.stringify({
+      mcpServers: {
+        fs: { command: "npx", args: ["@modelcontextprotocol/server-filesystem", "/Users/piya/private-client"] },
+        github: { command: "npx", args: ["@modelcontextprotocol/server-github"], env: { GITHUB_TOKEN: FAKE_GH } },
+      },
+    });
+    const report = analyzeLoadout([parseLoadout(config, "/Users/piya/.claude.json")]);
+    const payload = toScanPayload(report, { cli: "0.1.0", sources: ["claude-code"], instructions: { user: true, project: false } });
+    const text = JSON.stringify(payload);
+    expect(text).not.toMatch(/private-client|\/Users|\.claude\.json/);
+    expect(text).not.toContain(FAKE_GH);
+    expect(payload.gear.map((g) => g.registryId).sort()).toEqual(["filesystem", "github"]);
+    expect(payload.findings.some((f) => f.type === "security-risk" && f.message.includes("GITHUB_TOKEN"))).toBe(true);
+
+    expect(parseScanPayload({ ...payload, gear: [{ name: "x /Users/a/b", kind: "evil" }], sources: ["claude-code", "../etc"] })).toMatchObject({ gear: [], sources: ["claude-code"] });
+    expect(parseScanPayload({ version: 2 })).toBeNull();
+  });
+});

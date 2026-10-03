@@ -8,7 +8,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "test:e2e": "sh -c 'set -a; . apps/web/.env.local; set +a; ARENA_E2E_URL=http://localhost:3000 SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL pnpm --filter @arena/mcp test'",
+    "test:e2e": "sh -c 'set -a; . apps/web/.env.local; set +a; ARENA_E2E_URL=http://localhost:3000 SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL pnpm --filter @arena/mcp --filter setuptier test'",
     "db:start": "supabase start -x studio,imgproxy,vector,logflare,edge-runtime,realtime,storage-api,supavisor",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && pnpm --filter @arena/challenges sync && pnpm --filter @arena/loadout sync",

@@ -174,6 +174,25 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"cli_device_codes": {
+                  Row: {
+                    "approved_at": string | null,"client_name": string,"consumed_at": string | null,"created_at": string,"device_code_hash": string,"expires_at": string,"id": string,"user_code": string,"user_id": string | null
+                  }
+                  Insert: {
+                    "approved_at"?: string | null,"client_name": string,"consumed_at"?: string | null,"created_at"?: string,"device_code_hash": string,"expires_at": string,"id"?: string,"user_code": string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "approved_at"?: string | null,"client_name"?: string,"consumed_at"?: string | null,"created_at"?: string,"device_code_hash"?: string,"expires_at"?: string,"id"?: string,"user_code"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cli_device_codes_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"events": {
                   Row: {
                     "created_at": string,"id": number,"name": string,"props": NonNullable<Json>,"user_id": string | null

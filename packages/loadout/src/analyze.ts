@@ -23,7 +23,17 @@ export interface LoadoutReport {
   };
 }
 
-export function analyzeLoadout(parsed: ParseResult[]): LoadoutReport {
+export interface AnalyzeOptions {
+  /**
+   * Which client a gear item belongs to. Redundancy, overlap and bloat are judged per client, because each client
+   * loads only its own config into a session (the same MCP in Claude Desktop and in Codex is not a duplicate).
+   * Default: everything is one client (the web Doctor, where pasted files belong to one setup).
+   */
+  scope?: (g: DetectedGear) => string;
+}
+
+export function analyzeLoadout(parsed: ParseResult[], opts: AnalyzeOptions = {}): LoadoutReport {
+  const scopeOf = opts.scope ?? (() => "");
   const gear: AnalyzedGear[] = parsed
     .flatMap((p) => p.gear)
     .map((g) => {
@@ -32,37 +42,47 @@ export function analyzeLoadout(parsed: ParseResult[]): LoadoutReport {
     });
   const findings: LoadoutFinding[] = parsed.flatMap((p) => p.findings);
 
-  const byEntry = new Map<string, AnalyzedGear[]>();
-  for (const g of gear) if (g.entry) byEntry.set(g.entry.id, [...(byEntry.get(g.entry.id) ?? []), g]);
+  const scopes = new Map<string, AnalyzedGear[]>();
+  for (const g of gear) scopes.set(scopeOf(g), [...(scopes.get(scopeOf(g)) ?? []), g]);
 
-  for (const [, list] of byEntry) {
-    if (list.length > 1) {
-      findings.push({ type: "redundant", gear: list.map((g) => g.name), message: `${list[0]!.entry!.name} is configured ${list.length} times (${[...new Set(list.map((g) => g.source))].join(", ")}).`, evidence: "registry" });
-    }
-    const e = list[0]!.entry!;
-    if (e.risk) findings.push({ type: "security-risk", gear: [e.name], message: `${e.name}: ${e.risk}`, evidence: "registry" });
-  }
+  const risky = new Map<string, GearEntry>();
+  let estToolTokens = 0;
+  for (const [scope, scoped] of scopes) {
+    const label = scope ? `${scope}: ` : "";
+    const byEntry = new Map<string, AnalyzedGear[]>();
+    for (const g of scoped) if (g.entry) byEntry.set(g.entry.id, [...(byEntry.get(g.entry.id) ?? []), g]);
 
-  const byCategory = new Map<string, GearEntry[]>();
-  for (const [, list] of byEntry) {
-    const e = list[0]!.entry!;
-    byCategory.set(e.category, [...(byCategory.get(e.category) ?? []), e]);
-  }
-  for (const [cat, entries] of byCategory) {
-    if (entries.length > 1 && OVERLAP.has(cat)) {
-      findings.push({ type: "redundant", gear: entries.map((e) => e.name), message: `${entries.length} tools cover "${cat}": ${entries.map((e) => e.name).join(", ")}. Keep the one that measurably helps; each extra one costs context.`, evidence: "registry" });
+    for (const [, list] of byEntry) {
+      if (list.length > 1) {
+        findings.push({ type: "redundant", gear: list.map((g) => g.name), message: `${label}${list[0]!.entry!.name} is configured ${list.length} times (${[...new Set(list.map((g) => g.source))].join(", ")}).`, evidence: "registry" });
+      }
+      const e = list[0]!.entry!;
+      if (e.risk) risky.set(e.id, e);
     }
-    if (BUILT_IN[cat] && entries.some((e) => e.kind === "mcp")) {
-      findings.push({ type: "unused", gear: entries.map((e) => e.name), message: `${entries.map((e) => e.name).join(", ")} may duplicate your client's ${BUILT_IN[cat]}.`, evidence: "heuristic" });
+
+    const byCategory = new Map<string, GearEntry[]>();
+    for (const [, list] of byEntry) {
+      const e = list[0]!.entry!;
+      byCategory.set(e.category, [...(byCategory.get(e.category) ?? []), e]);
+    }
+    for (const [cat, entries] of byCategory) {
+      if (entries.length > 1 && OVERLAP.has(cat)) {
+        findings.push({ type: "redundant", gear: entries.map((e) => e.name), message: `${label}${entries.length} tools cover "${cat}": ${entries.map((e) => e.name).join(", ")}. Keep the one that measurably helps; each extra one costs context.`, evidence: "registry" });
+      }
+      if (BUILT_IN[cat] && entries.some((e) => e.kind === "mcp")) {
+        findings.push({ type: "unused", gear: entries.map((e) => e.name), message: `${label}${entries.map((e) => e.name).join(", ")} may duplicate your client's ${BUILT_IN[cat]}.`, evidence: "heuristic" });
+      }
+    }
+
+    const scopedMcp = scoped.filter((g) => g.kind === "mcp").length;
+    estToolTokens = Math.max(estToolTokens, scopedMcp * TOKENS_PER_SERVER); // the heaviest single session
+    if (scopedMcp > BLOAT_MCP) {
+      findings.push({ type: "bloated", gear: [], message: `${label}${scopedMcp} MCP servers ≈ ${(scopedMcp * TOKENS_PER_SERVER).toLocaleString("en-US")} tokens of tool definitions loaded every session. Disable the ones you rarely use.`, evidence: "heuristic" });
     }
   }
+  for (const e of risky.values()) findings.push({ type: "security-risk", gear: [e.name], message: `${e.name}: ${e.risk}`, evidence: "registry" });
 
   const mcpServers = gear.filter((g) => g.kind === "mcp").length;
-  const estToolTokens = mcpServers * TOKENS_PER_SERVER;
-  if (mcpServers > BLOAT_MCP) {
-    findings.push({ type: "bloated", gear: [], message: `${mcpServers} MCP servers ≈ ${estToolTokens.toLocaleString("en-US")} tokens of tool definitions loaded every session. Disable the ones you rarely use.`, evidence: "heuristic" });
-  }
-
   const byKind: Record<string, number> = {};
   for (const g of gear) byKind[g.kind] = (byKind[g.kind] ?? 0) + 1;
   const matched = gear.filter((g) => g.entry).length;
