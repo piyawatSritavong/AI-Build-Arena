@@ -137,6 +137,9 @@ export async function pingAgent(cwd: string): Promise<{ tokens: number }> {
   return { tokens: parseAgentJson(r.stdout).tokens };
 }
 
+// Subagent types every Claude Code has: part of the stock client, not the user's add-ons.
+const BUILT_IN_AGENTS = new Set(["explore", "general-purpose", "plan", "statusline-setup", "claude-code-guide", "output-style-setup", "fork"]);
+
 export interface StockProbe {
   instructions: boolean;
   mcpServers: string[];
@@ -146,14 +149,14 @@ export interface StockProbe {
 /** Asks the Stock agent what it can still see, so the result can be labelled honestly. */
 export async function probeStock(cwd: string): Promise<{ probe: StockProbe | null; tokens: number }> {
   const prompt =
-    'SETUPTIER PROBE. Do not use any tools. Reply with one JSON object only: {"instructions": true if your context contains user or project instructions from a CLAUDE.md or memory file else false, "mcp_servers": [names of MCP servers whose tools you have], "skills": [names of skills available to you]}';
+    'SETUPTIER PROBE. Do not use any tools. Reply with one JSON object only: {"instructions": true if your context contains user or project instructions from a CLAUDE.md or memory file else false, "mcp_servers": [names of MCP servers whose tools you have], "skills": [names of user-installed skills you can load with the Skill tool; NOT built-in subagent types such as Explore or Plan]}';
   const r = await exec(agentArgs("stock", "haiku"), prompt, cwd, 120_000);
   const { tokens } = parseAgentJson(r.stdout);
   try {
     const out = JSON.parse(r.stdout.trim().split("\n").filter(Boolean).at(-1) ?? "{}") as { result?: string };
     const j = JSON.parse((out.result ?? "").match(/\{[\s\S]*\}/)?.[0] ?? "") as { instructions?: unknown; mcp_servers?: unknown; skills?: unknown };
     const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 50) : []);
-    return { probe: { instructions: j.instructions === true, mcpServers: list(j.mcp_servers), skills: list(j.skills) }, tokens };
+    return { probe: { instructions: j.instructions === true, mcpServers: list(j.mcp_servers), skills: list(j.skills).filter((s) => !BUILT_IN_AGENTS.has(s.toLowerCase())) }, tokens };
   } catch {
     return { probe: null, tokens };
   }

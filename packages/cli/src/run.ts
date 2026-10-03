@@ -10,6 +10,11 @@ import { emptyDir, MEMORY_CHALLENGE, memoryWorkspace } from "./memory";
 
 /** Short health check: easy, fast challenges. `--all` runs every active challenge. */
 export const QUICK_SET = ["sum-of-evens", "bracket-balance", "roman-numerals"];
+/**
+ * Default token budget. Counts include the context Claude Code re-reads from its cache every turn (cheap, but large
+ * with many MCP tools loaded): a real Full run of an easy challenge measured ~234k, Stock ~39k.
+ */
+export const DEFAULT_BUDGET = 1_500_000;
 
 const PROMPT =
   "You are taking a SetupTier challenge. TASK.md has the instructions and input.json has the input, both in the current directory. " +
@@ -79,7 +84,11 @@ export async function preflight() {
   return `claude-code/${version}`;
 }
 
-export async function runSuite(creds: Credentials, opts: RunOptions, log: (line: string) => void): Promise<{ rows: RunRow[]; probe: StockProbe | null; tokens: number }> {
+export async function runSuite(
+  creds: Credentials,
+  opts: RunOptions,
+  log: (line: string) => void,
+): Promise<{ rows: RunRow[]; probe: StockProbe | null; tokens: number; model: string | null }> {
   const base = baseUrl(creds);
   const client = await preflight();
   const rows: RunRow[] = [];
@@ -147,7 +156,7 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
       }
     }
   }
-  return { rows, probe, tokens: spent };
+  return { rows, probe, tokens: spent, model: model ?? null };
 }
 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;

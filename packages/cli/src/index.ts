@@ -5,7 +5,7 @@ import { baseUrl, clearCredentials, loadCredentials } from "./config";
 import { login } from "./login";
 import { describePayload, scanMachine } from "./scan";
 import { describeRounds, isDue, MEMORY_CHALLENGE, memoryReminder, memoryRounds } from "./memory";
-import { listChallenges, QUICK_SET, runSuite, summarize } from "./run";
+import { DEFAULT_BUDGET, listChallenges, QUICK_SET, runSuite, summarize } from "./run";
 import { VERSION } from "./version";
 
 const HELP = `setuptier ${VERSION}: measure what your AI setup adds.
@@ -25,7 +25,7 @@ Usage:
       --runs <n>                   Repeats per challenge (default 1; repeats measure Reliability)
       --practice                   Practice mode: does not touch your leaderboard rank
       --model <name>               Model for both variants (default: your Claude Code default)
-      --budget <tokens>            Stop starting runs past this many tokens (default 300000)
+      --budget <tokens>            Stop starting runs past this many tokens (default 1500000; counts include cached context)
       --no-probe                   Skip the Stock check (what a "bare" run can still see)
       -y, --yes                    Start without asking
   setuptier memory [start|exam]    Memory Fitness: can your setup remember across sessions?
@@ -68,7 +68,7 @@ async function main() {
       runs: { type: "string", default: "1" },
       practice: { type: "boolean", default: false },
       model: { type: "string" },
-      budget: { type: "string", default: "300000" },
+      budget: { type: "string", default: String(DEFAULT_BUDGET) },
       "no-probe": { type: "boolean", default: false },
       yes: { type: "boolean", short: "y", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -112,7 +112,7 @@ async function main() {
       const challenges = values.all ? await listChallenges(creds) : values.challenges ? values.challenges.split(",").map((c) => c.trim()).filter(Boolean) : QUICK_SET;
       const variants = values.variant === "full" ? (["full"] as const) : values.variant === "stock" ? (["stock"] as const) : (["full", "stock"] as const);
       const runs = Math.min(Math.max(Number(values.runs) || 1, 1), 5);
-      const budgetTokens = Math.max(Number(values.budget) || 300_000, 10_000);
+      const budgetTokens = Math.max(Number(values.budget) || DEFAULT_BUDGET, 10_000);
       const total = challenges.length * variants.length * runs;
       console.log(
         `Plan: ${total} agent runs (${challenges.length} challenges × ${variants.join(" + ")} × ${runs}) in ${values.practice ? "practice" : "ranked"} mode.\n` +
@@ -121,7 +121,8 @@ async function main() {
       if (!values.yes && !(await confirm("Start?"))) return console.log("Cancelled.");
       const r = await runSuite(creds, { challenges, variants: [...variants], runs, mode: values.practice ? "practice" : "ranked", model: values.model, budgetTokens, probe: !values["no-probe"] }, (l) => console.log(l));
       console.log(summarize(r.rows));
-      return console.log(`\nTokens used: ${r.tokens.toLocaleString("en-US")}. Results: ${baseUrl(creds)}/me`);
+      if (r.model) console.log(`\nModel: ${r.model} (Stock ran on the same model).`);
+      return console.log(`Tokens used: ${r.tokens.toLocaleString("en-US")} (most of it cached context). Results: ${baseUrl(creds)}/me`);
     }
 
     case "memory": {
@@ -145,7 +146,7 @@ async function main() {
           (sub === "start" ? " Its files are deleted afterwards: only your setup's memory can carry the facts to the exam." : ""),
       );
       if (!values.yes && !(await confirm("Start?"))) return console.log("Cancelled.");
-      const budgetTokens = Math.max(Number(values.budget) || 300_000, 10_000);
+      const budgetTokens = Math.max(Number(values.budget) || DEFAULT_BUDGET, 10_000);
       const r = await runSuite(
         creds,
         { challenges: [MEMORY_CHALLENGE], variants, runs: 1, mode: values.practice ? "practice" : "ranked", model: values.model, budgetTokens, probe: sub === "start" && !values["no-probe"] },
