@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ThemeToggle } from "./theme-toggle";
 
 /**
  * Screen layout (Duolingo-style): back at top-left, optional menu at top-right,
@@ -23,7 +24,10 @@ export function PageShell({
     <div className="flex flex-1 flex-col">
       <header className={`mx-auto flex w-full ${width} items-center justify-between gap-2 px-4 pt-4`}>
         <div>{back}</div>
-        {topRight && <nav aria-label="Menu" className="flex flex-wrap justify-end gap-2">{topRight}</nav>}
+        <div className="flex items-center gap-2">
+          {topRight && <nav aria-label="Menu" className="flex flex-wrap justify-end gap-2">{topRight}</nav>}
+          <ThemeToggle />
+        </div>
       </header>
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-6`}>{children}</main>
       {(footerLeft || footerRight) && (

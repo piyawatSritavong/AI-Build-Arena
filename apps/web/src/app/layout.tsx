@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@/components/analytics";
 import { NavTracker } from "@/components/back-button";
 import { JsonLd } from "@/components/json-ld";
+import { themeInitScript } from "@/components/theme-toggle";
 import { SITE } from "@/lib/site";
 
 const geistSans = Geist({
@@ -46,8 +47,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // The theme script sets data-theme before hydration.
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <JsonLd
           data={{

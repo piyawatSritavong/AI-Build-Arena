@@ -4,6 +4,7 @@ import { SpriteView } from "@/components/sprite";
 import { ProWaitlist } from "@/components/pro-waitlist";
 import { createClient } from "@/lib/supabase/server";
 import { JsonLd } from "@/components/json-ld";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { FAQ } from "@/lib/faq";
 import { pageMeta, SITE } from "@/lib/site";
 
@@ -50,7 +51,10 @@ export default async function Home() {
         }}
       />
       <section className="space-y-6">
-        <p className="font-mono text-sm font-bold tracking-[0.3em] uppercase opacity-70">SetupTier</p>
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-sm font-bold tracking-[0.3em] uppercase opacity-70">SetupTier</p>
+          <ThemeToggle />
+        </div>
         <div className="flex gap-1">
           {SPRITES.slice(0, 8).map((s) => (
             <SpriteView key={s.id} id={s.id} px={3} />
