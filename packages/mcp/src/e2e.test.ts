@@ -163,6 +163,48 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(card).toMatchObject({ efficiency: 2, efficiency_challenges: 1, tokens_verified: false, cost_per_pass: null, reliability: 20.77 });
   });
 
+  it("computes Range and filters / sorts Leaderboard v2", async () => {
+    // Only sum-of-evens (logic, the hardest logic challenge is difficulty 1) is passed: full credit in 1 category.
+    const { count: cats } = await db.from("challenges").select("category", { count: "exact", head: true }).eq("is_active", true).eq("category", "logic");
+    expect(cats).toBeGreaterThan(0);
+    const { data: all } = await db.rpc("range_stats", { p_user: userId }).single();
+    const { data: categories } = await db.from("challenges").select("category").eq("is_active", true);
+    const total = new Set(categories!.map((c) => c.category)).size;
+    expect(all).toMatchObject({ categories_passed: 1, categories: total });
+    expect(Number(all!.range)).toBeCloseTo(100 / total, 1);
+    const { data: global } = await db.rpc("range_stats", { p_user: userId, p_league: "global" }).single();
+    expect(Number(global!.range)).toBeCloseTo(100 / 3, 1); // logic, algorithm, data
+
+    const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+    const { data: peerProfile } = await db.from("profiles").select("username").eq("id", peerId).single();
+    const board = async (args: Record<string, string>) => {
+      const { data, error } = await db.rpc("leaderboard", { p_model: "e2e-vanilla", ...args });
+      expect(error).toBeNull();
+      return data!;
+    };
+    // Same-Breed e2e-vanilla: both builders. Duo (MCP) keeps them; Autonomous (CLI) has nobody (all MCP results).
+    expect((await board({})).map((r) => r.username).sort()).toEqual([profile!.username, peerProfile!.username].sort());
+    expect(await board({ p_source: "cli" })).toEqual([]);
+    expect((await board({ p_source: "mcp" })).length).toBe(2);
+    // Sorts: rank follows the sorted number, highest first. The peer passed 5/5 → higher Reliability than 2/3.
+    for (const sort of ["score", "lift", "reliability", "range"] as const) {
+      const rows = await board({ p_sort: sort });
+      const key = { score: "total_score", lift: "avg_lift", reliability: "reliability", range: "range" }[sort] as "total_score";
+      const values = rows.map((r) => Number(r[key]));
+      expect(values).toEqual([...values].sort((x, y) => y - x));
+      expect(rows[0]!.rank).toBe(1);
+    }
+    expect((await board({ p_sort: "reliability" }))[0]!.username).toBe(peerProfile!.username);
+    // Efficiency: only this user has a community comparison (the peer's own runs are the median) → peer unranked.
+    const eff = await board({ p_sort: "efficiency" });
+    expect(eff.map((r) => [r.username, r.rank])).toEqual([[profile!.username, 1], [peerProfile!.username, null]]);
+    // Profession tag filter.
+    await db.from("profiles").update({ professions: ["programmer"] }).eq("id", userId);
+    expect((await board({ p_profession: "programmer" })).map((r) => r.username)).toEqual([profile!.username]);
+    const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+    expect(card).toMatchObject({ range_categories: 1, range_total: total, professions: ["programmer"] });
+  });
+
   it("caps unfinished attempts at 3 and records events", async () => {
     for (let i = 0; i < 3; i++) expect((await call("get_challenge", { challenge_id: "roman-numerals" })).attempt_id).toBeTruthy();
     const blocked = await call("get_challenge", { challenge_id: "roman-numerals" });

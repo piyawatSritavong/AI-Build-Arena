@@ -47,10 +47,11 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
             </div>
           ))}
         </dl>
-        <dl className="grid grid-cols-3 gap-2 text-center text-sm">
+        <dl className="grid grid-cols-4 gap-2 text-center text-sm">
           {[
             ["Passed", String(card.passed)],
             ["Score", fmt(card.total_score, 0)],
+            ["Range", card.range === null ? "—" : `${card.range_categories}/${card.range_total}`],
             ["Rank", rankLabel(card)],
           ].map(([k, v]) => (
             <div key={k} className="rounded-lg border border-foreground/10 py-1.5">

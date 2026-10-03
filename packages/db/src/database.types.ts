@@ -302,7 +302,7 @@ isOneToOne: false
           }
           Functions: {
             "best_passes":
-{ Args: { "p_league"?: Database["public"]['Enums']["league"] }; Returns: {
+{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_source"?: Database["public"]['Enums']["result_source"] }; Returns: {
               "category": string,"challenge_id": string,"league": Database["public"]['Enums']["league"],"lift": number,"score": number,"user_id": string
             }[]
                            },
@@ -312,13 +312,18 @@ isOneToOne: false
             }[]
                            },
 "efficiency_stats":
-{ Args: { "p_user"?: string }; Returns: {
+{ Args: { "p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {
               "challenge_id": string,"community_runs": number,"community_tokens": number,"cost_usd": number,"efficiency": number,"passes": number,"seconds": number,"tokens": number,"tokens_measured": boolean,"user_id": string
             }[]
                            },
 "leaderboard":
-{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_limit"?: number }; Returns: {
-              "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"lift_challenges": number,"lift_own": number,"lift_verified": number,"passed": number,"rank": number,"sprite_id": string,"total_score": number,"username": string
+{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_limit"?: number,"p_model"?: string,"p_profession"?: string,"p_sort"?: string,"p_source"?: Database["public"]['Enums']["result_source"] }; Returns: {
+              "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"efficiency": number,"lift_challenges": number,"lift_own": number,"lift_verified": number,"passed": number,"professions": (string)[],"range": number,"rank": number,"reliability": number,"reliability_runs": number,"sprite_id": string,"tokens_per_pass": number,"total_score": number,"username": string
+            }[]
+                           },
+"leaderboard_models":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "base_model": string,"builders": number
             }[]
                            },
 "lift_baseline":
@@ -335,23 +340,28 @@ isOneToOne: false
             }[]
                            },
 "paired_lifts":
-{ Args: { "p_challenge"?: string,"p_user"?: string }; Returns: {
+{ Args: { "p_challenge"?: string,"p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {
               "baseline_runs": number,"baseline_score": number,"basis": string,"challenge_id": string,"full_runs": number,"full_score": number,"lift": number,"user_id": string,"verified": boolean,"weight": number
             }[]
                            },
 "primary_full_runs":
-{ Args: { "p_user"?: string }; Returns: {
+{ Args: { "p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {
               "base_model": string,"challenge_id": string,"cost_usd": number,"duration_ms": number,"passed": boolean,"tokens": number,"tokens_measured": boolean,"user_id": string
             }[]
                            },
 "profile_card":
 { Args: { "p_username": string }; Returns: Json
                            },
+"range_stats":
+{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {
+              "categories": number,"categories_passed": number,"range": number,"user_id": string
+            }[]
+                           },
 "rate_limit_hit":
 { Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean
                            },
 "reliability_stats":
-{ Args: { "p_user"?: string }; Returns: {
+{ Args: { "p_league"?: Database["public"]['Enums']["league"],"p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {
               "challenges": number,"passes": number,"reliability": number,"runs": number,"user_id": string
             }[]
                            },

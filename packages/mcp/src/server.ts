@@ -96,10 +96,11 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     async () => {
       const { data, error } = await db.from("attempts").select("challenge_id, status, score").eq("user_id", userId).neq("status", "issued");
       if (error) return fail("Could not load stats.");
-      const [{ data: lifts }, { data: rel }, { data: eff }] = await Promise.all([
+      const [{ data: lifts }, { data: rel }, { data: eff }, { data: range }] = await Promise.all([
         db.rpc("paired_lifts", { p_user: userId }),
         db.rpc("reliability_stats", { p_user: userId }).maybeSingle(),
         db.rpc("efficiency_stats", { p_user: userId }),
+        db.rpc("range_stats", { p_user: userId }).maybeSingle(),
       ]);
       const liftOf = new Map((lifts ?? []).map((l) => [l.challenge_id, { lift: Number(l.lift), basis: l.basis, verified: l.verified }]));
       const per = new Map<string, { attempts: number; passed: number; best_score: number; lift: { lift: number; basis: string; verified: boolean } | null }>();
@@ -118,6 +119,7 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
         reliability: rel
           ? { lower_bound_pct: Number(rel.reliability), passes: rel.passes, runs: rel.runs, note: "95% Wilson lower bound over challenges run 3+ times" }
           : { lower_bound_pct: null, note: "Run a challenge 3+ times (mode practice is fine) to measure Reliability." },
+        range: range ? { score: Number(range.range), categories_passed: range.categories_passed, categories: range.categories, note: "0–100, categories passed weighted by the hardest difficulty passed" } : null,
         efficiency: Object.fromEntries(
           (eff ?? []).map((e) => [e.challenge_id, { tokens_per_pass: e.tokens, seconds_per_pass: e.seconds, vs_model_median: e.efficiency, tokens_measured: e.tokens_measured }]),
         ),

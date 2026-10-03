@@ -102,6 +102,10 @@ export interface ProfileCard {
   seconds_per_pass: number | null;
   cost_per_pass: number | null; // API-equivalent USD reported by the agent (CLI runs only)
   tokens_verified: boolean; // token counts measured by the CLI
+  range: number | null; // 0–100: categories passed, weighted by the hardest difficulty passed in each
+  range_categories: number | null; // categories with a pass
+  range_total: number; // active categories
+  professions: string[];
   top_category: string | null;
   global_rank: number | null;
   thai_rank: number | null;

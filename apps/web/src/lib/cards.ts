@@ -36,6 +36,7 @@ export function cardFootnote(card: ProfileCard, liftTrustLabel: string | null) {
         ? `Efficiency: tokens per pass${card.tokens_verified ? " (CLI-measured)" : " (self-reported)"}; the ×N comparison needs 5 passes by others on this model.`
         : "Efficiency appears once passes report tokens.",
   ];
+  if (card.range !== null) parts.push(`Range ${fmt(card.range, 0)}/100: categories passed, weighted by difficulty.`);
   const extras = [card.seconds_per_pass !== null && `${fmt(card.seconds_per_pass, 0)}s per pass`, card.cost_per_pass !== null && `~$${Number(card.cost_per_pass).toFixed(3)} per pass`].filter(Boolean);
   return [...parts, extras.length ? `${extras.join(" · ")}.` : ""].join(" ");
 }

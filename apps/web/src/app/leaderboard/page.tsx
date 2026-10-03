@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { liftTrust, type LiftTrust } from "@arena/core";
+import { liftTrust, PROFESSIONS, type LiftTrust } from "@arena/core";
 import { SpriteView } from "@/components/sprite";
-import { fmt, signed } from "@/lib/cards";
+import { efficiencyLabel, fmt, reliabilityLabel, signed } from "@/lib/cards";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { createPublicClient } from "@/lib/supabase/public";
 import { BackLink } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
@@ -12,7 +13,7 @@ import { absoluteUrl, pageMeta } from "@/lib/site";
 
 const LEAGUE_META = {
   overall: { title: "AI Setup Leaderboard", description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the same client with nothing added." },
-  global: { title: "Global League Leaderboard", description: "Global League rankings of AI coding setups on output-verified logic, algorithm and data challenges, by score and Lift." },
+  global: { title: "Global League Leaderboard", description: "Global League rankings of AI coding setups on output-verified logic, algorithm and data challenges, by score, Lift, Reliability, Efficiency and Range." },
   thai: { title: "Thai League Leaderboard", description: "Thai League rankings of AI setups on Thai baht text, Buddhist-era dates, Thai ID checksums, addresses and VAT/withholding tax challenges." },
 };
 
@@ -28,13 +29,69 @@ const TABS = [
   { league: "thai", label: "Thai League" },
 ] as const;
 
+const SORTS = [
+  { id: "score", label: "Score" },
+  { id: "lift", label: "Lift" },
+  { id: "reliability", label: "Reliability" },
+  { id: "efficiency", label: "Efficiency" },
+  { id: "range", label: "Range" },
+] as const;
+type Sort = (typeof SORTS)[number]["id"];
+
+const DIVISIONS = [
+  { id: undefined, label: "All", hint: "" },
+  { id: "duo", label: "Duo", hint: "You + your AI through the MCP connector. Results are self-reported." },
+  { id: "autonomous", label: "Autonomous", hint: "Your AI alone, run and measured by the setuptier CLI. Lift counts verified pairs only." },
+] as const;
+type Division = "duo" | "autonomous";
+
+type Filters = { league?: "global" | "thai"; sort: Sort; division?: Division; model?: string; profession?: string };
+
+function href(f: Filters, change: Partial<Filters>) {
+  const next = { ...f, ...change };
+  const q = new URLSearchParams();
+  if (next.league) q.set("league", next.league);
+  if (next.sort !== "score") q.set("sort", next.sort);
+  if (next.division) q.set("division", next.division);
+  if (next.model) q.set("model", next.model);
+  if (next.profession) q.set("profession", next.profession);
+  const qs = q.toString();
+  return qs ? `/leaderboard?${qs}` : "/leaderboard";
+}
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const pill = (active: boolean) => `rounded-full px-3 py-1 ${active ? "bg-foreground text-background" : "border border-foreground/20 hover:bg-foreground/5"}`;
+
 export default async function LeaderboardPage({ searchParams }: PageProps<"/leaderboard">) {
-  const { league: raw } = await searchParams;
-  const league = raw === "global" || raw === "thai" ? raw : undefined;
-  const [{ data: rows }, viewer] = await Promise.all([
-    createPublicClient().rpc("leaderboard", { p_league: league, p_limit: 100 }),
+  const sp = await searchParams;
+  const rawLeague = one(sp.league);
+  const rawSort = one(sp.sort);
+  const rawDivision = one(sp.division);
+  const rawProfession = one(sp.profession);
+  const f: Filters = {
+    league: rawLeague === "global" || rawLeague === "thai" ? rawLeague : undefined,
+    sort: SORTS.some((x) => x.id === rawSort) ? (rawSort as Sort) : "score",
+    division: rawDivision === "duo" || rawDivision === "autonomous" ? rawDivision : undefined,
+    model: one(sp.model)?.slice(0, 80) || undefined,
+    profession: PROFESSIONS.some((p) => p.id === rawProfession) ? rawProfession : undefined,
+  };
+  const db = createPublicClient();
+  const [{ data: rows }, { data: models }, viewer] = await Promise.all([
+    db.rpc("leaderboard", {
+      p_league: f.league,
+      p_limit: 100,
+      p_sort: f.sort,
+      p_model: f.model,
+      p_source: f.division === "duo" ? "mcp" : f.division === "autonomous" ? "cli" : undefined,
+      p_profession: f.profession,
+    }),
+    db.rpc("leaderboard_models"),
     getViewer(),
   ]);
+  const division = DIVISIONS.find((d) => d.id === f.division)!;
+  const filtered = Boolean(f.division || f.model || f.profession);
+  // Phones show the sorted number and Lift; the other metrics appear from the sm breakpoint.
+  const col = (id: Sort) => (f.sort === id ? "font-semibold" : id === "lift" ? "" : "hidden sm:table-cell");
 
   return (
     <PageShell
@@ -49,68 +106,129 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
         )
       }
     >
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{LEAGUE_META[league ?? "overall"].title}</h1>
-      {!!rows?.length && (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold">{LEAGUE_META[f.league ?? "overall"].title}</h1>
+      {!!rows?.length && !filtered && f.sort === "score" && (
         <JsonLd
           data={{
             "@type": "ItemList",
-            name: LEAGUE_META[league ?? "overall"].title,
+            name: LEAGUE_META[f.league ?? "overall"].title,
             itemListOrder: "https://schema.org/ItemListOrderDescending",
             numberOfItems: rows.length,
-            itemListElement: rows.slice(0, 50).map((r) => ({ "@type": "ListItem", position: r.rank, name: r.display_name ?? r.username, url: absoluteUrl(`/u/${r.username}`) })),
+            itemListElement: rows.slice(0, 50).map((r, i) => ({ "@type": "ListItem", position: r.rank ?? i + 1, name: r.display_name ?? r.username, url: absoluteUrl(`/u/${r.username}`) })),
           }}
         />
       )}
-      <nav className="flex gap-2 text-sm">
-        {TABS.map((t) => (
-          <Link
-            key={t.label}
-            href={t.league ? `/leaderboard?league=${t.league}` : "/leaderboard"}
-            className={`rounded-full px-3 py-1 ${t.league === league ? "bg-foreground text-background" : "border border-foreground/20"}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="space-y-3 text-sm">
+        <nav aria-label="League" className="flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <Link key={t.label} href={href(f, { league: t.league })} className={pill(t.league === f.league)}>
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+        <nav aria-label="Sort by" className="flex flex-wrap items-center gap-2">
+          <span className="opacity-60">Sort</span>
+          {SORTS.map((x) => (
+            <Link key={x.id} href={href(f, { sort: x.id })} className={pill(x.id === f.sort)}>
+              {x.label}
+            </Link>
+          ))}
+        </nav>
+        <nav aria-label="Division" className="flex flex-wrap items-center gap-2">
+          <span className="opacity-60">Division</span>
+          {DIVISIONS.map((d) => (
+            <Link key={d.label} href={href(f, { division: d.id })} className={pill(d.id === f.division)} title={d.hint || undefined}>
+              {d.label}
+            </Link>
+          ))}
+        </nav>
+        <form action="/leaderboard" className="flex flex-wrap items-center gap-2">
+          {f.league && <input type="hidden" name="league" value={f.league} />}
+          {f.sort !== "score" && <input type="hidden" name="sort" value={f.sort} />}
+          {f.division && <input type="hidden" name="division" value={f.division} />}
+          <label className="flex items-center gap-2">
+            <span className="opacity-60">Model</span>
+            <AutoSubmitSelect name="model" defaultValue={f.model ?? ""} className="rounded-lg border border-foreground/20 bg-background px-2 py-1">
+              <option value="">Open class (all models)</option>
+              {(models ?? []).map((m) => (
+                <option key={m.base_model} value={m.base_model}>
+                  Same-Breed: {m.base_model} ({m.builders})
+                </option>
+              ))}
+            </AutoSubmitSelect>
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="opacity-60">Profession</span>
+            <AutoSubmitSelect name="profession" defaultValue={f.profession ?? ""} className="rounded-lg border border-foreground/20 bg-background px-2 py-1">
+              <option value="">Everyone</option>
+              {PROFESSIONS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </AutoSubmitSelect>
+          </label>
+          <noscript>
+            <button className="rounded-lg border border-foreground/20 px-2 py-1">Apply</button>
+          </noscript>
+          {filtered && (
+            <Link href={href(f, { division: undefined, model: undefined, profession: undefined })} className="underline opacity-70">
+              Clear filters
+            </Link>
+          )}
+        </form>
+        {division.hint && <p className="text-xs opacity-60">{division.hint}</p>}
+      </div>
       {!rows?.length ? (
-        <p className="opacity-70">No passed challenges yet. Join, connect your AI and be the first on the board.</p>
+        <p className="opacity-70">{filtered ? "Nobody matches these filters yet." : "No passed challenges yet. Join, connect your AI and be the first on the board."}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full whitespace-nowrap text-sm [&_td]:px-2 [&_td:first-child]:pl-0 [&_th]:px-2 [&_th:first-child]:pl-0">
             <thead className="text-left opacity-60">
               <tr>
                 <th className="py-2">#</th>
                 <th>Builder</th>
-                <th>Model*</th>
-                <th className="text-right">Passed</th>
-                <th className="text-right">Score</th>
-                <th className="text-right">Lift</th>
+                <th className="hidden lg:table-cell">Model*</th>
+                <th className="hidden text-right sm:table-cell">Passed</th>
+                <th className={`text-right ${col("score")}`}>Score</th>
+                <th className={`text-right ${col("lift")}`}>Lift</th>
+                <th className={`text-right ${col("reliability")}`}>Rel.</th>
+                <th className={`text-right ${col("efficiency")}`}>Eff.</th>
+                <th className={`text-right ${col("range")}`}>Range</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-foreground/10">
               {rows.map((r) => (
                 <tr key={r.username}>
-                  <td className="py-2">{r.rank}</td>
+                  <td className="py-2">{r.rank ?? "–"}</td>
                   <td>
                     <Link href={`/u/${r.username}`} className="flex items-center gap-2 hover:underline">
                       <SpriteView id={r.sprite_id} px={2} />
-                      {r.display_name ?? r.username}
+                      <span className="leading-tight">
+                        {r.display_name ?? r.username}
+                        <span className="block text-xs opacity-60 lg:hidden">{r.base_model ?? "—"}*</span>
+                      </span>
                     </Link>
                   </td>
-                  <td className="opacity-70">{r.base_model ?? "—"}</td>
-                  <td className="text-right">{r.passed}</td>
-                  <td className="text-right">{fmt(r.total_score, 0)}</td>
-                  <td className="text-right">
+                  <td className="hidden opacity-70 lg:table-cell">{r.base_model ?? "—"}</td>
+                  <td className="hidden text-right sm:table-cell">{r.passed}</td>
+                  <td className={`text-right ${col("score")}`}>{fmt(r.total_score, 0)}</td>
+                  <td className={`text-right ${col("lift")}`}>
                     {signed(r.avg_lift)}
                     {r.lift_challenges > 0 && <LiftMark trust={liftTrust({ lift_challenges: r.lift_challenges, lift_verified: r.lift_verified, lift_own: r.lift_own })} />}
                   </td>
+                  <td className={`text-right ${col("reliability")}`}>{reliabilityLabel(r)}</td>
+                  <td className={`text-right ${col("efficiency")}`}>{efficiencyLabel({ efficiency: r.efficiency, tokens_per_pass: r.tokens_per_pass })}</td>
+                  <td className={`text-right ${col("range")}`}>{fmt(r.range, 0)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className="mt-2 text-xs opacity-50">
             Lift = how much a setup beats the same client with nothing added (Stock), −100 to +100. ✓ CLI-verified · † vs community median (no own Stock run yet) · no mark = self-reported.
+            Rel. = pass-rate lower bound over challenges run 3+ times. Eff. = ×N fewer tokens per pass than the median for the model (or tokens per pass).
+            Range = how many challenge categories are passed, weighted by the hardest difficulty passed (0–100). – = not measured yet.
             <br />* Model is self-declared by each builder. Scores come from verified answers.
           </p>
         </div>
