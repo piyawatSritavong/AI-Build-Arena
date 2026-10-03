@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { auraFor, auraStage, getSprite, spriteDataUri, STAGE_NAMES } from "@arena/core";
-import { fmt, getProfileCard, rankLabel, signed } from "@/lib/cards";
+import { efficiencyLabel, getProfileCard, rankLabel, reliabilityLabel, signed } from "@/lib/cards";
 
 export const alt = "SetupTier profile card";
 export const size = { width: 1200, height: 630 };
@@ -13,9 +13,9 @@ export default async function Image({ params }: { params: Promise<{ username: st
   const stage = card ? auraStage(card.passed, card.avg_lift) : 0;
   const stats: [string, string][] = card
     ? [
-        ["Passed", String(card.passed)],
-        ["Score", fmt(card.total_score, 0)],
         ["Lift", signed(card.avg_lift)],
+        ["Reliability", reliabilityLabel(card)],
+        ["Efficiency", efficiencyLabel(card)],
         ["Rank", rankLabel(card)],
       ]
     : [];

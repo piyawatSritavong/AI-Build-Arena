@@ -5,7 +5,7 @@ import { ArenaCard } from "@/components/arena-card";
 import { BackButton } from "@/components/back-button";
 import { PageShell } from "@/components/page-shell";
 import { btnPrimary, btnSecondary } from "@/components/ui";
-import { getProfileCard, rankLabel, signed } from "@/lib/cards";
+import { efficiencyLabel, getProfileCard, rankLabel, reliabilityLabel, signed } from "@/lib/cards";
 import { getViewer } from "@/lib/session";
 import { JsonLd } from "@/components/json-ld";
 import { absoluteUrl, pageMeta } from "@/lib/site";
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[username]">): 
   return pageMeta({
     title: `${name}'s AI setup (@${card.username})`,
     description: card.passed
-      ? `${name}'s AI coding setup on SetupTier: ${card.build?.base_model ?? "unknown model"}, ${card.passed} challenges passed, Lift ${signed(card.avg_lift)}, rank ${rankLabel(card)}.`
+      ? `${name}'s AI coding setup on SetupTier: ${card.build?.base_model ?? "unknown model"}, ${card.passed} challenges passed, Lift ${signed(card.avg_lift)}, reliability ${reliabilityLabel(card)}, efficiency ${efficiencyLabel(card)}, rank ${rankLabel(card)}.`
       : `${name}'s AI coding setup on SetupTier${card.build?.base_model ? ` (${card.build.base_model})` : ""}. No challenges passed yet.`,
     path: `/u/${card.username}`,
     images: [{ url: `/u/${card.username}/opengraph-image`, width: 1200, height: 630, alt: `${name}'s SetupTier card` }],

@@ -93,6 +93,15 @@ export interface ProfileCard {
   lift_challenges: number; // challenges with a Lift
   lift_verified: number; // … where Full and Stock both came from the CLI
   lift_own: number; // … measured against the user's own Stock runs (the rest use the community median)
+  reliability: number | null; // Wilson lower bound of the pass rate on challenges run ≥ 3 times, 0–100
+  reliability_runs: number;
+  reliability_challenges: number;
+  efficiency: number | null; // community median tokens per pass ÷ yours (geometric mean); > 1 = leaner than typical
+  efficiency_challenges: number;
+  tokens_per_pass: number | null;
+  seconds_per_pass: number | null;
+  cost_per_pass: number | null; // API-equivalent USD reported by the agent (CLI runs only)
+  tokens_verified: boolean; // token counts measured by the CLI
   top_category: string | null;
   global_rank: number | null;
   thai_rank: number | null;

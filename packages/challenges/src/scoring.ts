@@ -18,3 +18,4 @@ export function normalizedGain(full: number, base: number): number {
   if (full >= base) return base >= 100 ? 0 : round2(((full - base) / (100 - base)) * 100);
   return round2(((full - base) / base) * 100);
 }
+

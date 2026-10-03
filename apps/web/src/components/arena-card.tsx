@@ -1,6 +1,6 @@
 import { auraFor, auraStage, LIFT_TRUST_LABEL, liftTrust, STAGE_NAMES, type ProfileCard } from "@arena/core";
 import { SpriteView } from "./sprite";
-import { fmt, rankLabel, signed } from "@/lib/cards";
+import { cardFootnote, efficiencyLabel, fmt, rankLabel, reliabilityLabel, signed } from "@/lib/cards";
 
 export function ArenaCard({ card }: { card: ProfileCard }) {
   const aura = auraFor(card.top_category);
@@ -35,24 +35,32 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
           </span>{" "}
           <span className="opacity-70">Stage {stage} · {STAGE_NAMES[stage]}</span>
         </p>
-        <dl className="grid grid-cols-4 gap-2 text-center text-sm">
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          {[
+            ["Lift", signed(card.avg_lift)],
+            ["Reliability", reliabilityLabel(card)],
+            ["Efficiency", efficiencyLabel(card)],
+          ].map(([k, v]) => (
+            <div key={k} className="rounded-lg bg-foreground/5 py-2.5">
+              <dt className="text-xs opacity-60">{k}</dt>
+              <dd className="text-xl font-semibold">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <dl className="grid grid-cols-3 gap-2 text-center text-sm">
           {[
             ["Passed", String(card.passed)],
             ["Score", fmt(card.total_score, 0)],
-            ["Lift", signed(card.avg_lift)],
             ["Rank", rankLabel(card)],
           ].map(([k, v]) => (
-            <div key={k} className="rounded-lg bg-foreground/5 py-2">
-              <dt className="text-xs opacity-60">{k}</dt>
-              <dd className="font-semibold">{v}</dd>
+            <div key={k} className="rounded-lg border border-foreground/10 py-1.5">
+              <dt className="text-[11px] opacity-60">{k}</dt>
+              <dd className="font-medium">{v}</dd>
             </div>
           ))}
         </dl>
         <p className="text-[11px] opacity-50">
-          {trust
-            ? `Lift: how much the setup beats the same client with nothing added (−100 to +100), ${LIFT_TRUST_LABEL[trust]}, ${card.lift_challenges} challenge${card.lift_challenges === 1 ? "" : "s"}. `
-            : "Lift appears after a Stock run (the same client with nothing added). "}
-          * Model and gear are self-declared. Scores come from verified answers.
+          {cardFootnote(card, trust && LIFT_TRUST_LABEL[trust])} * Model and gear are self-declared. Scores come from verified answers.
         </p>
       </div>
     </div>

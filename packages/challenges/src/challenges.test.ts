@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bahtText, challenges, computeScore, createRng, normalizedGain } from "./index";
+import { bahtText, challenges, computeScore, createRng, normalizedGain, wilsonLower } from "./index";
 
 describe("rng", () => {
   it("is deterministic per seed", () => {
@@ -56,6 +56,17 @@ describe("normalizedGain", () => {
     expect(normalizedGain(100, 100)).toBe(0);
     expect(normalizedGain(90, 100)).toBe(-10);
     expect(normalizedGain(0, 80)).toBe(-100);
+  });
+});
+
+describe("wilsonLower", () => {
+  it("does not give a lucky single pass 100%, and tightens with more runs", () => {
+    expect(wilsonLower(1, 1)).toBe(20.65);
+    expect(wilsonLower(3, 3)).toBe(43.85);
+    expect(wilsonLower(10, 10)).toBe(72.25);
+    expect(wilsonLower(5, 10)).toBe(23.66);
+    expect(wilsonLower(0, 5)).toBe(0);
+    expect(wilsonLower(0, 0)).toBeNull();
   });
 });
 

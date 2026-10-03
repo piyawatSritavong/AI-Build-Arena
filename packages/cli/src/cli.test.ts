@@ -148,6 +148,19 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
         "full/passed/cli/1700/claude-code/9.9.9",
         "stock/failed/cli/1700/claude-code/9.9.9",
       ]);
+
+      // Two more Full runs (practice) → 3 runs on the challenge: Reliability = Wilson lower bound of 3/3.
+      const more = await runSuite(
+        { url: url!, token, username: "cli-e2e" },
+        { challenges: ["sum-of-evens"], variants: ["full"], runs: 2, mode: "practice", budgetTokens: 100_000, probe: false },
+        () => {},
+      );
+      expect(summarize([...r.rows, ...more.rows])).toMatch(/3\/3 \(≥44%\)\s+1\.7k/);
+      const { data: costs } = await db.from("attempts").select("cost_usd").eq("user_id", userId);
+      expect(costs!.map((c) => Number(c.cost_usd))).toEqual([0.01, 0.01, 0.01, 0.01]); // the agent's own figure
+      const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+      const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+      expect(card).toMatchObject({ reliability: 43.85, reliability_runs: 3, tokens_per_pass: 1700, tokens_verified: true, cost_per_pass: 0.01, efficiency: null });
     } finally {
       delete process.env.SETUPTIER_AGENT_CMD;
       delete process.env.FAKE_AGENT_LOG;

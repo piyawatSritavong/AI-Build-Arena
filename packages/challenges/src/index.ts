@@ -6,6 +6,7 @@ import { thaiBahtText } from "./defs/thai-baht-text";
 
 export { createRng } from "./rng";
 export { computeScore, normalizedGain } from "./scoring";
+export { wilsonLower } from "@arena/core";
 export { bahtText } from "./defs/thai-baht-text";
 export { toRoman } from "./defs/global";
 export { invoiceTotals, thaiIdCheckDigit } from "./defs/thai";

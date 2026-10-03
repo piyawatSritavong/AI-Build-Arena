@@ -119,7 +119,7 @@ function parseAnswer(raw: string): unknown {
 
 export async function submitAttempt(
   { db, userId, source }: ArenaUser,
-  input: { attemptId: string; answer: string; model?: string; tokensSelfReported?: number; tokensMeasured?: number; client?: string },
+  input: { attemptId: string; answer: string; model?: string; tokensSelfReported?: number; tokensMeasured?: number; costUsd?: number; client?: string },
 ): Promise<SubmittedAnswer | Fail> {
   const { data: attempt } = await db
     .from("attempts")
@@ -135,13 +135,15 @@ export async function submitAttempt(
   const now = new Date();
   const durationMs = now.getTime() - new Date(attempt.issued_at).getTime();
   // Measured tokens are accepted only for attempts the CLI started (an MCP client cannot claim "measured").
-  const measured = source === "cli" && attempt.source === "cli" ? input.tokensMeasured : undefined;
+  const fromCli = source === "cli" && attempt.source === "cli";
+  const measured = fromCli ? input.tokensMeasured : undefined;
   const base = {
     submitted_at: now.toISOString(),
     duration_ms: durationMs,
     model_self_reported: input.model?.slice(0, 80) ?? null,
     tokens_self_reported: input.tokensSelfReported ?? null,
     tokens_measured: measured ?? null,
+    cost_usd: fromCli && input.costUsd !== undefined ? Math.round(input.costUsd * 10_000) / 10_000 : null,
     client: input.client?.slice(0, 40) ?? null,
   };
 

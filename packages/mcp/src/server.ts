@@ -90,13 +90,17 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     "my_stats",
     {
       title: "My stats",
-      description: "Your attempts summary: passed/failed counts, average and best scores, and Lift (Full vs Stock) per challenge.",
+      description: "Your attempts summary: passed/failed counts, average and best scores, and Lift (Full vs Stock) per challenge, Reliability (pass-rate lower bound) and Efficiency (tokens per pass).",
       annotations: { readOnlyHint: true },
     },
     async () => {
       const { data, error } = await db.from("attempts").select("challenge_id, status, score").eq("user_id", userId).neq("status", "issued");
       if (error) return fail("Could not load stats.");
-      const { data: lifts } = await db.rpc("paired_lifts", { p_user: userId });
+      const [{ data: lifts }, { data: rel }, { data: eff }] = await Promise.all([
+        db.rpc("paired_lifts", { p_user: userId }),
+        db.rpc("reliability_stats", { p_user: userId }).maybeSingle(),
+        db.rpc("efficiency_stats", { p_user: userId }),
+      ]);
       const liftOf = new Map((lifts ?? []).map((l) => [l.challenge_id, { lift: Number(l.lift), basis: l.basis, verified: l.verified }]));
       const per = new Map<string, { attempts: number; passed: number; best_score: number; lift: { lift: number; basis: string; verified: boolean } | null }>();
       for (const a of data) {
@@ -111,6 +115,12 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
         total_attempts: data.length,
         passed: data.filter((a) => a.status === "passed").length,
         avg_score: scores.length ? Math.round((scores.reduce((x, y) => x + y, 0) / scores.length) * 100) / 100 : null,
+        reliability: rel
+          ? { lower_bound_pct: Number(rel.reliability), passes: rel.passes, runs: rel.runs, note: "95% Wilson lower bound over challenges run 3+ times" }
+          : { lower_bound_pct: null, note: "Run a challenge 3+ times (mode practice is fine) to measure Reliability." },
+        efficiency: Object.fromEntries(
+          (eff ?? []).map((e) => [e.challenge_id, { tokens_per_pass: e.tokens, seconds_per_pass: e.seconds, vs_model_median: e.efficiency, tokens_measured: e.tokens_measured }]),
+        ),
         challenges: Object.fromEntries(per),
       });
     },

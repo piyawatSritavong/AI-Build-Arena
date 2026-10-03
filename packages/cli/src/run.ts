@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Json } from "@arena/core";
+import { wilsonLower, type Json } from "@arena/core";
 import { api, ApiError } from "./api";
 import { agentLoggedIn, agentVersion, probeStock, runAgent, type StockProbe, type Variant } from "./agent";
 import type { Credentials } from "./config";
@@ -115,7 +115,7 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
           // Always submit (an empty answer fails) so no attempt is left open and blocking.
           const s = await api<Submitted>(base, `/api/cli/attempts/${started.attempt_id}/submit`, {
             token: creds.token,
-            body: { answer: a.answer ?? "", tokens: a.tokens, model: a.model ?? model, client },
+            body: { answer: a.answer ?? "", tokens: a.tokens, cost_usd: a.costUsd ?? undefined, model: a.model ?? model, client },
           });
           rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), challengeLift: s.challenge_lift, error: a.error });
           log(`${challenge} [${variant}] ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
@@ -129,25 +129,43 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
 }
 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;
+const kTokens = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
 
 /**
- * Full vs Stock per challenge (mean of this session's runs) and the server's Lift: normalized gain of all ranked
- * Full runs over the baseline, −100…+100. ✓ = both sides measured by the CLI; "community" = no Stock run of yours yet.
+ * Per challenge: Full vs Stock (mean of this session's runs), the server's Lift (normalized gain of all ranked
+ * Full runs over the baseline, −100…+100; ✓ = both sides measured by the CLI, "community" = no Stock run of
+ * yours yet), Full passes (with the Wilson lower bound once a challenge ran ≥ 3 times) and tokens per Full pass.
  */
 export function summarize(rows: RunRow[]) {
-  const by = new Map<string, { full: number[]; stock: number[]; lift: ChallengeLift | null }>();
+  type Agg = { full: number[]; stock: number[]; passes: number; runs: number; passTokens: number[]; lift: ChallengeLift | null };
+  const by = new Map<string, Agg>();
   for (const r of rows) {
-    const e = by.get(r.challenge) ?? { full: [], stock: [], lift: null };
+    const e = by.get(r.challenge) ?? { full: [], stock: [], passes: 0, runs: 0, passTokens: [], lift: null };
     if (r.score !== null) e[r.variant].push(r.score);
+    if (r.variant === "full" && r.correct !== null) {
+      e.runs++;
+      if (r.correct) {
+        e.passes++;
+        e.passTokens.push(r.tokens);
+      }
+    }
     if (r.challengeLift !== undefined) e.lift = r.challengeLift; // latest server value wins
     by.set(r.challenge, e);
   }
-  const mean = (xs: number[]) => (xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : "—");
-  const lines = ["", "Challenge             Full    Stock   Lift"];
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const lines = ["", "Challenge             Full    Stock   Lift                 Full passes      Tokens/pass"];
   for (const [c, e] of by) {
     const lift = e.lift ? `${signed(e.lift.lift)} ${e.lift.basis === "community" ? "(community)" : e.lift.verified ? "✓" : "(self-reported)"}` : "—";
-    lines.push(`${c.padEnd(20)} ${mean(e.full).padStart(6)} ${mean(e.stock).padStart(7)}   ${lift}`);
+    const rel = e.runs >= 3 ? ` (≥${Math.round(wilsonLower(e.passes, e.runs) ?? 0)}%)` : "";
+    const tok = mean(e.passTokens);
+    lines.push(
+      `${c.padEnd(20)} ${(mean(e.full)?.toFixed(1) ?? "—").padStart(6)} ${(mean(e.stock)?.toFixed(1) ?? "—").padStart(7)}   ${lift.padEnd(20)} ${`${e.passes}/${e.runs}${rel}`.padEnd(16)} ${tok === null ? "—" : kTokens(tok)}`,
+    );
   }
-  lines.push("", "Lift = normalized gain of your ranked Full runs over Stock (−100…+100). Practice runs do not change it.");
+  lines.push(
+    "",
+    "Lift = normalized gain of your ranked Full runs over Stock (−100…+100). Practice runs do not change it.",
+    "Reliability needs ≥ 3 runs of a challenge (--runs 3); ≥N% is the 95% lower bound of your pass rate.",
+  );
   return lines.join("\n");
 }

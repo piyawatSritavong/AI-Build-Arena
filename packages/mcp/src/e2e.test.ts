@@ -138,12 +138,37 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(Number((card as { avg_lift: number }).avg_lift)).toBeCloseTo(expected, 1);
   });
 
+  it("measures Efficiency against the model's community median and Reliability from 3+ runs", async () => {
+    // The peer passes sum-of-evens 5 times with 246 tokens each; this user's passes reported 123 → ×2.0 leaner.
+    const { data: build } = await db.from("builds").select("id").eq("user_id", peerId).single();
+    const { data: fullVariant } = await db.from("build_variants").select("id").eq("build_id", build!.id).eq("kind", "full").single();
+    const now = new Date().toISOString();
+    const rows = Array.from({ length: 5 }, () => ({
+      user_id: peerId, build_id: build!.id, variant_id: fullVariant!.id, challenge_id: "sum-of-evens", challenge_version: getChallenge("sum-of-evens")!.version,
+      seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, duration_ms: 4000, status: "passed" as const, correct: true, score: 99, source: "mcp" as const, tokens_self_reported: 246,
+    }));
+    expect((await db.from("attempts").insert(rows)).error).toBeNull();
+
+    const stats = await call("my_stats");
+    expect(stats.efficiency["sum-of-evens"]).toMatchObject({ tokens_per_pass: 123, vs_model_median: 2, tokens_measured: false });
+    // 2 Full runs on sum-of-evens so far (ranked + practice): not enough for Reliability.
+    expect(stats.reliability.lower_bound_pct).toBeNull();
+    const a = await call("get_challenge", { challenge_id: "sum-of-evens", mode: "practice" });
+    await call("submit_answer", { attempt_id: a.attempt_id, answer: "-1", tokens_used: 999 }); // a fail
+    const after = await call("my_stats");
+    expect(after.reliability).toMatchObject({ passes: 2, runs: 3, lower_bound_pct: 20.77 });
+
+    const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+    const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+    expect(card).toMatchObject({ efficiency: 2, efficiency_challenges: 1, tokens_verified: false, cost_per_pass: null, reliability: 20.77 });
+  });
+
   it("caps unfinished attempts at 3 and records events", async () => {
     for (let i = 0; i < 3; i++) expect((await call("get_challenge", { challenge_id: "roman-numerals" })).attempt_id).toBeTruthy();
     const blocked = await call("get_challenge", { challenge_id: "roman-numerals" });
     expect(blocked.isError).toBe(true);
     expect(blocked.error).toContain("unfinished");
     const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("name", "challenge_submitted");
-    expect(count).toBe(4);
+    expect(count).toBe(5);
   });
 });
