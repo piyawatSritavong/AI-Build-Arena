@@ -23,7 +23,10 @@ export async function createToken(_prev: TokenState, formData: FormData): Promis
   const { error } = await createAdminClient()
     .from("api_tokens")
     .insert({ user_id: auth.user.id, name, token_prefix: prefix, token_hash: hash });
-  if (error) return { error: "Could not create token." };
+  if (error) {
+    console.error("createToken failed:", error.message);
+    return { error: "Could not create token." };
+  }
   await track("token_created", auth.user.id);
   revalidatePath("/me");
   return { token: raw };

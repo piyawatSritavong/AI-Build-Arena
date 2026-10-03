@@ -12,7 +12,13 @@ async function handle(request: Request) {
   const auth = request.headers.get("authorization");
   // ?token= is a fallback for clients that cannot set headers; prefer the Authorization header.
   const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : new URL(request.url).searchParams.get("token");
-  const db = createAdminClient();
+  let db;
+  try {
+    db = createAdminClient();
+  } catch (e) {
+    console.error("MCP admin client:", e instanceof Error ? e.message : e);
+    return Response.json({ jsonrpc: "2.0", error: { code: -32603, message: "Server misconfigured." }, id: null }, { status: 500 });
+  }
   const userId = token ? await authenticateToken(db, token) : null;
   if (!userId) {
     return Response.json(
