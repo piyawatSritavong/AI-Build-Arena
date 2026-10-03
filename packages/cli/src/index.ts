@@ -4,6 +4,7 @@ import { api, ApiError } from "./api";
 import { baseUrl, clearCredentials, loadCredentials } from "./config";
 import { login } from "./login";
 import { describePayload, scanMachine } from "./scan";
+import { listChallenges, QUICK_SET, runSuite, summarize } from "./run";
 import { VERSION } from "./version";
 
 const HELP = `setuptier ${VERSION}: measure what your AI setup adds.
@@ -16,6 +17,16 @@ Usage:
       --dry-run                    Show what would be uploaded, upload nothing
       --json                       Print the upload payload as JSON (with --dry-run)
       -y, --yes                    Upload without asking
+  setuptier run [options]          Let your AI (Claude Code) solve challenges: Full setup vs Stock client
+      --challenges <a,b>           Challenge ids (default: a quick 3-challenge health check)
+      --all                        Every active challenge
+      --variant <full|stock|both>  Default both (Full − Stock = your Lift)
+      --runs <n>                   Repeats per challenge (default 1; repeats measure Reliability)
+      --practice                   Practice mode: does not touch your leaderboard rank
+      --model <name>               Model for both variants (default: your Claude Code default)
+      --budget <tokens>            Stop starting runs past this many tokens (default 300000)
+      --no-probe                   Skip the Stock check (what a "bare" run can still see)
+      -y, --yes                    Start without asking
   setuptier logout                 Forget the saved token on this computer
 
 What a scan sends: tool names, kinds and findings. Never commands, arguments, URLs,
@@ -45,6 +56,14 @@ async function main() {
       project: { type: "string" },
       "dry-run": { type: "boolean", default: false },
       json: { type: "boolean", default: false },
+      challenges: { type: "string" },
+      all: { type: "boolean", default: false },
+      variant: { type: "string", default: "both" },
+      runs: { type: "string", default: "1" },
+      practice: { type: "boolean", default: false },
+      model: { type: "string" },
+      budget: { type: "string", default: "300000" },
+      "no-probe": { type: "boolean", default: false },
       yes: { type: "boolean", short: "y", default: false },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
@@ -78,6 +97,23 @@ async function main() {
       if (!values.yes && !(await confirm(`Upload this to ${baseUrl(creds)} as @${creds.username}?`))) return console.log("Cancelled: nothing uploaded.");
       const r = await api<{ items: number; findings: number; report_url: string }>(baseUrl(creds), "/api/cli/scan", { token: creds.token, body: payload });
       return console.log(`✓ Uploaded ${r.items} items and ${r.findings} findings. See ${r.report_url}`);
+    }
+
+    case "run": {
+      const creds = await requireLogin();
+      const challenges = values.all ? await listChallenges(creds) : values.challenges ? values.challenges.split(",").map((c) => c.trim()).filter(Boolean) : QUICK_SET;
+      const variants = values.variant === "full" ? (["full"] as const) : values.variant === "stock" ? (["stock"] as const) : (["full", "stock"] as const);
+      const runs = Math.min(Math.max(Number(values.runs) || 1, 1), 5);
+      const budgetTokens = Math.max(Number(values.budget) || 300_000, 10_000);
+      const total = challenges.length * variants.length * runs;
+      console.log(
+        `Plan: ${total} agent runs (${challenges.length} challenges × ${variants.join(" + ")} × ${runs}) in ${values.practice ? "practice" : "ranked"} mode.\n` +
+          `Each run uses your own Claude Code (your subscription or API key) in a temporary folder. Budget: ${budgetTokens.toLocaleString("en-US")} tokens.`,
+      );
+      if (!values.yes && !(await confirm("Start?"))) return console.log("Cancelled.");
+      const r = await runSuite(creds, { challenges, variants: [...variants], runs, mode: values.practice ? "practice" : "ranked", model: values.model, budgetTokens, probe: !values["no-probe"] }, (l) => console.log(l));
+      console.log(summarize(r.rows));
+      return console.log(`\nTokens used: ${r.tokens.toLocaleString("en-US")}. Results: ${baseUrl(creds)}/me`);
     }
 
     default:

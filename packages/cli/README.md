@@ -5,9 +5,25 @@ Measure what your AI setup adds. Command-line companion for [setuptier.com](http
 ```bash
 npx setuptier login     # sign in through the browser (device code)
 npx setuptier scan      # scan this computer's AI tools, preview, then upload
+npx setuptier run       # your Claude Code solves challenges: Full setup vs Stock client
 npx setuptier whoami
 npx setuptier logout
 ```
+
+## What `run` does
+
+For each challenge it asks setuptier.com for a fresh attempt, writes `TASK.md` + `input.json` to a temporary folder,
+and runs your own Claude Code there (`claude -p`) twice:
+
+- **Full**: your normal setup (MCP servers, skills, plugins, hooks, instructions).
+- **Stock**: the same client and model with `--strict-mcp-config` (no MCP servers), `--setting-sources project`
+  (none of your user settings, hooks or plugins) and the Skill tool disabled.
+
+The answer in `answer.json` and the token count Claude Code reports are submitted. Full − Stock is what your setup adds.
+Before the Stock runs, a one-question check (on Haiku) reports anything a Stock run can still see, for example a
+user-level `CLAUDE.md`, so the result is labelled honestly. Runs use your own subscription or API key, stop at
+`--budget` tokens, and never use `--dangerously-skip-permissions`: the agent may only read/write files and run
+`node` / `python` in the temporary folder.
 
 ## What `scan` reads and sends
 

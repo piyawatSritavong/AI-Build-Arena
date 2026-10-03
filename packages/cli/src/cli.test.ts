@@ -5,6 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@arena/db";
 import { scanMachine } from "./scan";
+import { runSuite } from "./run";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 // Fake credential assembled at runtime so secret scanners do not flag this file.
 const FAKE_GH = ["gh", "p_", "fixturefixturefixturefixture1234567890"].join("");
@@ -103,5 +106,48 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
     expect(JSON.stringify(rows![0]!.gear)).not.toContain("/Users"); // re-sanitized on the server
 
     expect((await post("/api/cli/scan", { version: 1 }, "aba_nope")).status).toBe(401);
+  });
+
+  it("runs Full and Stock through the local agent and records measured tokens", async () => {
+    // Fresh sign-in for this test (single-use device code).
+    const start = (await (await post("/api/cli/device", { client_name: "e2e run" })).json()) as { device_code: string; user_code: string };
+    await db.from("cli_device_codes").update({ user_id: userId, approved_at: new Date().toISOString() }).eq("user_code", start.user_code);
+    const { token } = (await (await post("/api/cli/token", { device_code: start.device_code })).json()) as { token: string };
+    await db.from("builds").insert({ user_id: userId, name: "e2e build", base_model: "claude-opus-5-5", client: "claude-code" });
+
+    const log = join(tmpdir(), `fake-agent-${Date.now()}.log`);
+    process.env.SETUPTIER_AGENT_CMD = fileURLToPath(new URL("../test-fixtures/fake-agent.mjs", import.meta.url));
+    process.env.FAKE_AGENT_LOG = log;
+    try {
+      const r = await runSuite(
+        { url: url!, token, username: "cli-e2e" },
+        { challenges: ["sum-of-evens"], variants: ["full", "stock"], runs: 1, mode: "ranked", budgetTokens: 100_000, probe: true },
+        () => {},
+      );
+      expect(r.probe).toEqual({ instructions: false, mcpServers: [], skills: [] });
+      expect(r.rows.map((x) => `${x.variant}:${x.correct}`)).toEqual(["full:true", "stock:false"]);
+      expect(r.tokens).toBe(1700 * 3); // probe + 2 runs
+
+      const calls = (await readFile(log, "utf8")).trim().split("\n").map((l) => JSON.parse(l) as string[]);
+      const [probe, full, stock] = calls;
+      expect(probe).toContain("--strict-mcp-config");
+      expect(full).not.toContain("--strict-mcp-config");
+      expect(stock).toEqual(expect.arrayContaining(["--strict-mcp-config", "--setting-sources", "project", "--model", "claude-fake-1"]));
+      for (const c of calls) expect(c).not.toContain("--dangerously-skip-permissions");
+
+      const { data: rows } = await db
+        .from("attempts")
+        .select("status, source, tokens_measured, client, model_self_reported, build_variants(kind)")
+        .eq("user_id", userId)
+        .order("issued_at");
+      expect(rows!.map((x) => `${x.build_variants?.kind}/${x.status}/${x.source}/${x.tokens_measured}/${x.client}`)).toEqual([
+        "full/passed/cli/1700/claude-code/9.9.9",
+        "stock/failed/cli/1700/claude-code/9.9.9",
+      ]);
+    } finally {
+      delete process.env.SETUPTIER_AGENT_CMD;
+      delete process.env.FAKE_AGENT_LOG;
+      await rm(log, { force: true });
+    }
   });
 });
