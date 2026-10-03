@@ -3,10 +3,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@arena/db";
 import { computeScore, getChallenge } from "@arena/challenges";
+import type { ResultSource } from "@arena/core";
 
 export interface ArenaContext {
   db: SupabaseClient<Database>; // service role: every query below must scope by userId
   userId: string;
+  /** Where results come from: the remote MCP (self-reported) or the SetupTier CLI. */
+  source?: ResultSource;
 }
 
 const ATTEMPTS_PER_HOUR = 30;
@@ -28,7 +31,7 @@ async function track(db: SupabaseClient<Database>, userId: string, name: string,
   await db.from("events").insert({ user_id: userId, name, props }).then(() => undefined, () => undefined);
 }
 
-export function createArenaMcpServer({ db, userId }: ArenaContext) {
+export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContext) {
   const server = new McpServer({ name: "setuptier", version: "0.1.0" });
 
   server.registerTool(
@@ -54,9 +57,19 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
       title: "Start a challenge attempt",
       description:
         "Starts a timed attempt and returns the instructions plus a freshly generated input. Solve it locally (write and run code), then call submit_answer with the attempt_id. Each attempt has its own random input and accepts one submission.",
-      inputSchema: { challenge_id: z.string().describe("Id from list_challenges") },
+      inputSchema: {
+        challenge_id: z.string().describe("Id from list_challenges"),
+        variant: z
+          .enum(["full", "stock"])
+          .optional()
+          .describe('"full" (default) = your whole setup. "stock" = the same client with none of your MCP servers, skills, memory or custom instructions: this is the baseline your Lift is measured against.'),
+        mode: z
+          .enum(["ranked", "practice"])
+          .optional()
+          .describe('"ranked" (default) counts for the leaderboard. "practice" repeats a challenge to measure Reliability without touching your rank.'),
+      },
     },
-    async ({ challenge_id }) => {
+    async ({ challenge_id, variant = "full", mode = "ranked" }) => {
       const def = getChallenge(challenge_id);
       const { count: open } = await db
         .from("attempts")
@@ -71,6 +84,10 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
       if (!def || !row?.is_active) return fail(`Unknown challenge "${challenge_id}".`);
 
       const { data: build } = await db.from("builds").select("id").eq("user_id", userId).eq("is_primary", true).maybeSingle();
+      if (variant === "stock" && !build) return fail("Save your build on setuptier.com first: a Stock run is measured against a build.");
+      const { data: variantRow } = build
+        ? await db.from("build_variants").select("id").eq("build_id", build.id).eq("kind", variant).maybeSingle()
+        : { data: null };
       const seed = crypto.randomUUID();
       const issuedAt = new Date();
       const expiresAt = new Date(issuedAt.getTime() + row.time_limit_seconds * 1000);
@@ -79,6 +96,9 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
         .insert({
           user_id: userId,
           build_id: build?.id ?? null,
+          variant_id: variantRow?.id ?? null,
+          mode,
+          source,
           challenge_id,
           challenge_version: def.version,
           seed,
@@ -88,12 +108,14 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
         .select("id")
         .single();
       if (error) return fail("Could not start attempt.");
-      await track(db, userId, "challenge_started", { challenge_id });
+      await track(db, userId, "challenge_started", { challenge_id, variant, mode, source });
 
       return json({
         attempt_id: attempt.id,
         title: def.title,
         instructions: def.prompt,
+        variant,
+        mode,
         input: def.generate(seed).input,
         time_limit_seconds: row.time_limit_seconds,
         expires_at: expiresAt.toISOString(),
@@ -117,7 +139,7 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
     async ({ attempt_id, answer, model, tokens_used }) => {
       const { data: attempt } = await db
         .from("attempts")
-        .select("id, challenge_id, challenge_version, seed, status, issued_at, expires_at, build_id, challenges(time_limit_seconds)")
+        .select("id, challenge_id, challenge_version, seed, status, issued_at, expires_at, build_id, challenges(time_limit_seconds), build_variants(kind)")
         .eq("id", attempt_id)
         .eq("user_id", userId)
         .maybeSingle();
@@ -138,9 +160,11 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
       const { expected } = def.generate(attempt.seed);
       const result = def.verify(parseAnswer(answer), expected);
 
+      // A Stock run is itself the baseline, so it has no Lift. (Paired Lift lands on D12.)
+      const isStock = attempt.build_variants?.kind === "stock";
       let baselineScore: number | undefined;
       let baselineModel: string | undefined;
-      if (attempt.build_id) {
+      if (attempt.build_id && !isStock) {
         const { data: build } = await db.from("builds").select("base_model").eq("id", attempt.build_id).maybeSingle();
         if (build) {
           const { data: bl } = await db.from("baselines").select("avg_score").eq("challenge_id", def.id).eq("model", build.base_model).maybeSingle();
@@ -164,7 +188,11 @@ export function createArenaMcpServer({ db, userId }: ArenaContext) {
         accuracy: result.accuracy,
         score,
         lift: lift ?? null,
-        lift_note: baselineModel ? `vs vanilla ${baselineModel}` : "No baseline yet for your build's base model.",
+        lift_note: isStock
+          ? "Stock run recorded: it is the baseline your Full setup's Lift is measured against."
+          : baselineModel
+            ? `vs vanilla ${baselineModel}`
+            : "No baseline yet: run this challenge once with variant \"stock\" to measure your Lift.",
         duration_seconds: Math.round(durationMs / 1000),
         feedback: result.feedback,
       });

@@ -23,7 +23,26 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "api_tokens": {
+            "achievements": {
+                  Row: {
+                    "awarded_at": string,"code": string,"meta": NonNullable<Json>,"user_id": string
+                  }
+                  Insert: {
+                    "awarded_at"?: string,"code": string,"meta"?: NonNullable<Json>,"user_id": string
+                  }
+                  Update: {
+                    "awarded_at"?: string,"code"?: string,"meta"?: NonNullable<Json>,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "achievements_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"api_tokens": {
                   Row: {
                     "created_at": string,"id": string,"last_used_at": string | null,"name": string,"revoked_at": string | null,"token_hash": string,"token_prefix": string,"user_id": string
                   }
@@ -44,13 +63,13 @@ isOneToOne: false
                   ]
                 },"attempts": {
                   Row: {
-                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"correct": boolean | null,"duration_ms": number | null,"expires_at": string,"id": string,"issued_at": string,"lift": number | null,"model_self_reported": string | null,"score": number | null,"seed": string,"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_self_reported": number | null,"user_id": string
+                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"client": string | null,"correct": boolean | null,"duration_ms": number | null,"expires_at": string,"id": string,"issued_at": string,"lift": number | null,"mode": Database["public"]['Enums']["attempt_mode"],"model_self_reported": string | null,"score": number | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_measured": number | null,"tokens_self_reported": number | null,"user_id": string,"variant_id": string | null
                   }
                   Insert: {
-                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"correct"?: boolean | null,"duration_ms"?: number | null,"expires_at": string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_self_reported"?: number | null,"user_id": string
+                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"client"?: string | null,"correct"?: boolean | null,"duration_ms"?: number | null,"expires_at": string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id": string,"variant_id"?: string | null
                   }
                   Update: {
-                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"correct"?: boolean | null,"duration_ms"?: number | null,"expires_at"?: string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_self_reported"?: number | null,"user_id"?: string
+                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"client"?: string | null,"correct"?: boolean | null,"duration_ms"?: number | null,"expires_at"?: string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id"?: string,"variant_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -70,6 +89,12 @@ isOneToOne: false
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "attempts_variant_id_fkey"
+      columns: ["variant_id"]
+isOneToOne: false
+      referencedRelation: "build_variants"
       referencedColumns: ["id"]
     }
                   ]
@@ -92,15 +117,40 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"builds": {
+                },"build_variants": {
                   Row: {
-                    "base_model": string,"client": string | null,"created_at": string,"gear": NonNullable<Json>,"id": string,"is_primary": boolean,"name": string,"sprite_id": string,"updated_at": string,"user_id": string
+                    "added_gear": (string)[],"build_id": string,"created_at": string,"id": string,"kind": Database["public"]['Enums']["variant_kind"],"label": string,"removed_gear": (string)[],"user_id": string
                   }
                   Insert: {
-                    "base_model": string,"client"?: string | null,"created_at"?: string,"gear"?: NonNullable<Json>,"id"?: string,"is_primary"?: boolean,"name": string,"sprite_id"?: string,"updated_at"?: string,"user_id": string
+                    "added_gear"?: (string)[],"build_id": string,"created_at"?: string,"id"?: string,"kind": Database["public"]['Enums']["variant_kind"],"label": string,"removed_gear"?: (string)[],"user_id": string
                   }
                   Update: {
-                    "base_model"?: string,"client"?: string | null,"created_at"?: string,"gear"?: NonNullable<Json>,"id"?: string,"is_primary"?: boolean,"name"?: string,"sprite_id"?: string,"updated_at"?: string,"user_id"?: string
+                    "added_gear"?: (string)[],"build_id"?: string,"created_at"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["variant_kind"],"label"?: string,"removed_gear"?: (string)[],"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "build_variants_build_id_fkey"
+      columns: ["build_id"]
+isOneToOne: false
+      referencedRelation: "builds"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "build_variants_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"builds": {
+                  Row: {
+                    "base_model": string,"client": string | null,"created_at": string,"gear": NonNullable<Json>,"id": string,"is_primary": boolean,"loadout_visibility": Database["public"]['Enums']["loadout_visibility"],"name": string,"sprite_id": string,"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "base_model": string,"client"?: string | null,"created_at"?: string,"gear"?: NonNullable<Json>,"id"?: string,"is_primary"?: boolean,"loadout_visibility"?: Database["public"]['Enums']["loadout_visibility"],"name": string,"sprite_id"?: string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "base_model"?: string,"client"?: string | null,"created_at"?: string,"gear"?: NonNullable<Json>,"id"?: string,"is_primary"?: boolean,"loadout_visibility"?: Database["public"]['Enums']["loadout_visibility"],"name"?: string,"sprite_id"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -156,15 +206,34 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"loadout_scans": {
+                },"gear_stats": {
                   Row: {
-                    "build_id": string | null,"created_at": string,"findings": NonNullable<Json>,"id": string,"summary": NonNullable<Json>,"user_id": string
+                    "ablation_runs": number,"adopters": number,"adoption_rate": number | null,"computed_at": string,"gear_id": string,"lift_delta": number | null,"lift_delta_ci_high": number | null,"lift_delta_ci_low": number | null,"segment": string,"segment_value": string
                   }
                   Insert: {
-                    "build_id"?: string | null,"created_at"?: string,"findings"?: NonNullable<Json>,"id"?: string,"summary": NonNullable<Json>,"user_id": string
+                    "ablation_runs"?: number,"adopters"?: number,"adoption_rate"?: number | null,"computed_at"?: string,"gear_id": string,"lift_delta"?: number | null,"lift_delta_ci_high"?: number | null,"lift_delta_ci_low"?: number | null,"segment": string,"segment_value"?: string
                   }
                   Update: {
-                    "build_id"?: string | null,"created_at"?: string,"findings"?: NonNullable<Json>,"id"?: string,"summary"?: NonNullable<Json>,"user_id"?: string
+                    "ablation_runs"?: number,"adopters"?: number,"adoption_rate"?: number | null,"computed_at"?: string,"gear_id"?: string,"lift_delta"?: number | null,"lift_delta_ci_high"?: number | null,"lift_delta_ci_low"?: number | null,"segment"?: string,"segment_value"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "gear_stats_gear_id_fkey"
+      columns: ["gear_id"]
+isOneToOne: false
+      referencedRelation: "gear_registry"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"loadout_scans": {
+                  Row: {
+                    "build_id": string | null,"created_at": string,"findings": NonNullable<Json>,"gear": NonNullable<Json>,"id": string,"source": Database["public"]['Enums']["scan_source"],"summary": NonNullable<Json>,"user_id": string
+                  }
+                  Insert: {
+                    "build_id"?: string | null,"created_at"?: string,"findings"?: NonNullable<Json>,"gear"?: NonNullable<Json>,"id"?: string,"source"?: Database["public"]['Enums']["scan_source"],"summary": NonNullable<Json>,"user_id": string
+                  }
+                  Update: {
+                    "build_id"?: string | null,"created_at"?: string,"findings"?: NonNullable<Json>,"gear"?: NonNullable<Json>,"id"?: string,"source"?: Database["public"]['Enums']["scan_source"],"summary"?: NonNullable<Json>,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -183,13 +252,13 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"bio": string | null,"created_at": string,"display_name": string | null,"id": string,"updated_at": string,"username": string
+                    "avatar_url": string | null,"bio": string | null,"created_at": string,"display_name": string | null,"id": string,"professions": (string)[],"trust_score": number,"updated_at": string,"username": string
                   }
                   Insert: {
-                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id": string,"updated_at"?: string,"username": string
+                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id": string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username": string
                   }
                   Update: {
-                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id"?: string,"updated_at"?: string,"username"?: string
+                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id"?: string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username"?: string
                   }
                   Relationships: [
                     
@@ -223,6 +292,11 @@ isOneToOne: false
               "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"passed": number,"rank": number,"sprite_id": string,"total_score": number,"username": string
             }[]
                            },
+"own_primary_build":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "base_model": string,"client": string,"gear": Json,"id": string,"loadout_visibility": Database["public"]['Enums']["loadout_visibility"],"name": string,"sprite_id": string
+            }[]
+                           },
 "profile_card":
 { Args: { "p_username": string }; Returns: Json
                            },
@@ -231,7 +305,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai"
+            "attempt_mode": "ranked"|"practice","attempt_status": "issued"|"passed"|"failed"|"expired","gear_kind": "mcp"|"skill"|"plugin"|"hook"|"cli"|"extension"|"memory"|"other","league": "global"|"thai","loadout_visibility": "hidden"|"categories"|"names"|"install","result_source": "mcp"|"cli","scan_source": "paste"|"cli","variant_kind": "full"|"stock"|"ablation"|"custom"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -351,7 +425,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "attempt_status": ["issued", "passed", "failed", "expired"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"]
+            "attempt_mode": ["ranked", "practice"],"attempt_status": ["issued", "passed", "failed", "expired"],"gear_kind": ["mcp", "skill", "plugin", "hook", "cli", "extension", "memory", "other"],"league": ["global", "thai"],"loadout_visibility": ["hidden", "categories", "names", "install"],"result_source": ["mcp", "cli"],"scan_source": ["paste", "cli"],"variant_kind": ["full", "stock", "ablation", "custom"]
           }
         }
 } as const

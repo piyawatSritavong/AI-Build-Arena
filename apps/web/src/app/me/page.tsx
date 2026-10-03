@@ -24,7 +24,8 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
 
   const [{ data: profile }, { data: build }, { data: tokens }, { count: attempts }] = await Promise.all([
     supabase.from("profiles").select("username, display_name, avatar_url").eq("id", auth.user.id).single(),
-    supabase.from("builds").select("name, base_model, client, gear, sprite_id").eq("user_id", auth.user.id).eq("is_primary", true).maybeSingle(),
+    // gear is owner-only (schema v2): read it through the security-definer RPC, not the table
+    supabase.rpc("own_primary_build").maybeSingle(),
     supabase.from("api_tokens").select("id, name, token_prefix, last_used_at").is("revoked_at", null).order("created_at"),
     supabase.from("attempts").select("id", { count: "exact", head: true }).neq("status", "issued"),
   ]);

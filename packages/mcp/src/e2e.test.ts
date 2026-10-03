@@ -76,12 +76,37 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(s).toMatchObject({ total_attempts: 2, passed: 1 });
   });
 
+  it("records Stock and practice runs without touching the leaderboard", async () => {
+    const solve = async (variant: string, mode: string) => {
+      const a = await call("get_challenge", { challenge_id: "sum-of-evens", variant, mode });
+      expect(a).toMatchObject({ variant, mode });
+      const answer = (a.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
+      return call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer) });
+    };
+    const stock = await solve("stock", "ranked");
+    expect(stock).toMatchObject({ correct: true, lift: null });
+    expect(stock.lift_note).toContain("Stock run");
+    expect((await solve("full", "practice")).correct).toBe(true);
+
+    const { data: rows } = await db
+      .from("attempts")
+      .select("mode, source, build_variants(kind)")
+      .eq("user_id", userId)
+      .eq("challenge_id", "sum-of-evens")
+      .order("issued_at");
+    expect(rows!.map((r) => `${r.build_variants?.kind}/${r.mode}/${r.source}`)).toEqual(["full/ranked/mcp", "stock/ranked/mcp", "full/practice/mcp"]);
+
+    const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+    const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+    expect((card as { passed: number }).passed).toBe(1); // only the ranked Full pass counts
+  });
+
   it("caps unfinished attempts at 3 and records events", async () => {
     for (let i = 0; i < 3; i++) expect((await call("get_challenge", { challenge_id: "roman-numerals" })).attempt_id).toBeTruthy();
     const blocked = await call("get_challenge", { challenge_id: "roman-numerals" });
     expect(blocked.isError).toBe(true);
     expect(blocked.error).toContain("unfinished");
     const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("name", "challenge_submitted");
-    expect(count).toBe(2);
+    expect(count).toBe(4);
   });
 });

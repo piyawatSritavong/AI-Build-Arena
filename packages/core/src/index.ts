@@ -43,6 +43,37 @@ export interface ScoreResult {
   lift?: number; // score - baselineScore
 }
 
+/**
+ * Measurement contracts (schema v2). A build has variants; every attempt runs one of them.
+ * Full = the user's whole setup; Stock = the same client with none of the user's add-ons (Paired Lift);
+ * Ablation = Full minus some gear; Custom = forks and other experiments.
+ */
+export const VARIANT_KINDS = ["full", "stock", "ablation", "custom"] as const;
+export type VariantKind = (typeof VARIANT_KINDS)[number];
+/** Ranked runs count for the leaderboard; practice runs feed Reliability and Ablation only. */
+export const ATTEMPT_MODES = ["ranked", "practice"] as const;
+export type AttemptMode = (typeof ATTEMPT_MODES)[number];
+/** mcp = self-reported through the remote MCP; cli = run and counted by the SetupTier CLI. */
+export type ResultSource = "mcp" | "cli";
+/** How much of a build's loadout the public report shows. */
+export const LOADOUT_VISIBILITY = ["hidden", "categories", "names", "install"] as const;
+export type LoadoutVisibility = (typeof LOADOUT_VISIBILITY)[number];
+
+/** Profession tags (multi-select, max 5). Must match the profiles.professions check constraint. */
+export const PROFESSIONS = [
+  { id: "programmer", label: "Programmer" },
+  { id: "data-analyst", label: "Data analyst" },
+  { id: "graphic-designer", label: "Graphic designer" },
+  { id: "uiux-designer", label: "UI/UX designer" },
+  { id: "video-editor", label: "Video editor" },
+  { id: "writer", label: "Writer / content creator" },
+  { id: "marketer", label: "Marketer" },
+  { id: "researcher", label: "Researcher" },
+  { id: "student", label: "Student" },
+  { id: "ops", label: "Ops / admin" },
+] as const;
+export type Profession = (typeof PROFESSIONS)[number]["id"];
+
 /** Remote MCP tool names (packages/mcp). */
 export const MCP_TOOLS = ["list_challenges", "get_challenge", "submit_answer", "my_stats"] as const;
 export type McpToolName = (typeof MCP_TOOLS)[number];
