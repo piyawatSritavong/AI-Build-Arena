@@ -81,7 +81,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
               <tr>
                 <th className="py-2">#</th>
                 <th>Builder</th>
-                <th>Model</th>
+                <th>Model*</th>
                 <th className="text-right">Passed</th>
                 <th className="text-right">Score</th>
                 <th className="text-right">Avg Lift</th>
@@ -105,6 +105,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
               ))}
             </tbody>
           </table>
+          <p className="mt-2 text-xs opacity-50">* Model is self-declared by each builder. Scores come from verified answers.</p>
         </div>
       )}
     </div>

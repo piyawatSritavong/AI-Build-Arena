@@ -25,7 +25,7 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
         <div>
           <p className="text-lg font-semibold">{card.display_name ?? card.username}</p>
           <p className="text-sm opacity-70">
-            @{card.username} · {card.build ? `${card.build.name} · ${card.build.base_model}` : "no build yet"}
+            @{card.username} · {card.build ? `${card.build.name} · ${card.build.base_model}*` : "no build yet"}
           </p>
         </div>
         <p className="text-sm">
@@ -47,6 +47,7 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
             </div>
           ))}
         </dl>
+        <p className="text-[11px] opacity-50">* Model and gear are self-declared. Scores come from verified answers.</p>
       </div>
     </div>
   );
