@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[username]">): 
   return pageMeta({
     title: `${name}'s AI setup (@${card.username})`,
     description: card.passed
-      ? `${name}'s AI coding setup on SetupTier: ${card.build?.base_model ?? "unknown model"}, ${card.passed} challenges passed, average Lift ${signed(card.avg_lift)}, rank ${rankLabel(card)}.`
+      ? `${name}'s AI coding setup on SetupTier: ${card.build?.base_model ?? "unknown model"}, ${card.passed} challenges passed, Lift ${signed(card.avg_lift)}, rank ${rankLabel(card)}.`
       : `${name}'s AI coding setup on SetupTier${card.build?.base_model ? ` (${card.build.base_model})` : ""}. No challenges passed yet.`,
     path: `/u/${card.username}`,
     images: [{ url: `/u/${card.username}/opengraph-image`, width: 1200, height: 630, alt: `${name}'s SetupTier card` }],

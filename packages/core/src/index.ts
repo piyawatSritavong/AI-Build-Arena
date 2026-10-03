@@ -36,12 +36,12 @@ export interface ScoreInput {
   accuracy: number;
   durationMs: number;
   timeLimitMs: number;
-  baselineScore?: number;
 }
 export interface ScoreResult {
   score: number; // 0..100
-  lift?: number; // score - baselineScore
 }
+/** Where a Lift's baseline came from: the user's own Stock runs, or the community median for the same model. */
+export type LiftBasis = "own" | "community";
 
 /**
  * Measurement contracts (schema v2). A build has variants; every attempt runs one of them.

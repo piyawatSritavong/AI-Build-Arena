@@ -21,10 +21,16 @@ interface Started {
   input: Json;
   time_limit_seconds: number;
 }
+interface ChallengeLift {
+  lift: number;
+  basis: "own" | "community";
+  verified: boolean;
+}
 interface Submitted {
   correct: boolean;
   score: number;
   lift: number | null;
+  challenge_lift: ChallengeLift | null;
 }
 
 export interface RunOptions {
@@ -44,6 +50,7 @@ export interface RunRow {
   score: number | null;
   tokens: number;
   seconds: number;
+  challengeLift?: ChallengeLift | null; // the server's Paired Lift for the challenge after this run
   error?: string;
 }
 
@@ -110,7 +117,7 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
             token: creds.token,
             body: { answer: a.answer ?? "", tokens: a.tokens, model: a.model ?? model, client },
           });
-          rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), error: a.error });
+          rows.push({ challenge, variant, correct: s.correct, score: s.score, tokens: a.tokens, seconds: Math.round(a.durationMs / 1000), challengeLift: s.challenge_lift, error: a.error });
           log(`${challenge} [${variant}] ${s.correct ? "✓" : "✗"} score ${s.score} · ${a.tokens.toLocaleString("en-US")} tokens${a.error ? ` · ${a.error}` : ""}`);
         } finally {
           await rm(dir, { recursive: true, force: true });
@@ -121,18 +128,26 @@ export async function runSuite(creds: Credentials, opts: RunOptions, log: (line:
   return { rows, probe, tokens: spent };
 }
 
-/** Full vs Stock per challenge (best of the runs). */
+const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;
+
+/**
+ * Full vs Stock per challenge (mean of this session's runs) and the server's Lift: normalized gain of all ranked
+ * Full runs over the baseline, −100…+100. ✓ = both sides measured by the CLI; "community" = no Stock run of yours yet.
+ */
 export function summarize(rows: RunRow[]) {
-  const by = new Map<string, { full: number | null; stock: number | null }>();
+  const by = new Map<string, { full: number[]; stock: number[]; lift: ChallengeLift | null }>();
   for (const r of rows) {
-    const e = by.get(r.challenge) ?? { full: null, stock: null };
-    if (r.score !== null) e[r.variant] = Math.max(e[r.variant] ?? -Infinity, r.score);
+    const e = by.get(r.challenge) ?? { full: [], stock: [], lift: null };
+    if (r.score !== null) e[r.variant].push(r.score);
+    if (r.challengeLift !== undefined) e.lift = r.challengeLift; // latest server value wins
     by.set(r.challenge, e);
   }
-  const lines = ["", "Challenge             Full    Stock   Full − Stock"];
+  const mean = (xs: number[]) => (xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : "—");
+  const lines = ["", "Challenge             Full    Stock   Lift"];
   for (const [c, e] of by) {
-    const d = e.full !== null && e.stock !== null ? (e.full - e.stock >= 0 ? "+" : "") + (e.full - e.stock).toFixed(1) : "—";
-    lines.push(`${c.padEnd(20)} ${String(e.full ?? "—").padStart(6)} ${String(e.stock ?? "—").padStart(7)}   ${d}`);
+    const lift = e.lift ? `${signed(e.lift.lift)} ${e.lift.basis === "community" ? "(community)" : e.lift.verified ? "✓" : "(self-reported)"}` : "—";
+    lines.push(`${c.padEnd(20)} ${mean(e.full).padStart(6)} ${mean(e.stock).padStart(7)}   ${lift}`);
   }
+  lines.push("", "Lift = normalized gain of your ranked Full runs over Stock (−100…+100). Practice runs do not change it.");
   return lines.join("\n");
 }

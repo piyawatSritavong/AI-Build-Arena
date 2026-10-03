@@ -5,7 +5,7 @@ import { thaiAddressParse, thaiDateConvert, thaiIdChecksum, thaiVatWht } from ".
 import { thaiBahtText } from "./defs/thai-baht-text";
 
 export { createRng } from "./rng";
-export { computeScore } from "./scoring";
+export { computeScore, normalizedGain } from "./scoring";
 export { bahtText } from "./defs/thai-baht-text";
 export { toRoman } from "./defs/global";
 export { invoiceTotals, thaiIdCheckDigit } from "./defs/thai";

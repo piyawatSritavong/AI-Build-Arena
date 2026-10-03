@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@arena/db";
 import { scanMachine } from "./scan";
-import { runSuite } from "./run";
+import { runSuite, summarize } from "./run";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -127,6 +127,10 @@ describe.skipIf(!url)("CLI device sign-in e2e", () => {
       expect(r.probe).toEqual({ instructions: false, mcpServers: [], skills: [] });
       expect(r.rows.map((x) => `${x.variant}:${x.correct}`)).toEqual(["full:true", "stock:false"]);
       expect(r.tokens).toBe(1700 * 3); // probe + 2 runs
+      // Paired Lift: Full ≈ 100 over a Stock of 0 → normalized gain ≈ +100, both sides from the CLI = verified.
+      expect(r.rows[1]!.challengeLift).toMatchObject({ basis: "own", verified: true });
+      expect(r.rows[1]!.challengeLift!.lift).toBeGreaterThan(99);
+      expect(summarize(r.rows)).toMatch(/sum-of-evens\s+\d+\.\d\s+0\.0\s+\+(99|100)\.\d ✓/);
 
       const calls = (await readFile(log, "utf8")).trim().split("\n").map((l) => JSON.parse(l) as string[]);
       const [probe, full, stock] = calls;

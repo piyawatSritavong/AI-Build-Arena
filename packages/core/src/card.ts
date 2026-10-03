@@ -89,9 +89,28 @@ export interface ProfileCard {
   build: { name: string; base_model: string; client: string | null; sprite_id: string; gear_count: number } | null;
   passed: number;
   total_score: number;
-  avg_lift: number | null;
+  avg_lift: number | null; // Paired Lift: weighted mean normalized gain of Full over Stock, −100…+100
+  lift_challenges: number; // challenges with a Lift
+  lift_verified: number; // … where Full and Stock both came from the CLI
+  lift_own: number; // … measured against the user's own Stock runs (the rest use the community median)
   top_category: string | null;
   global_rank: number | null;
   thai_rank: number | null;
   leagues: Partial<Record<"global" | "thai", number>>;
 }
+
+export type LiftTrust = "verified" | "self-reported" | "community";
+/**
+ * Where a Lift number comes from, for its label: every pair CLI-verified, otherwise self-reported (MCP) pairs,
+ * or only the community Stock median when the user has no Stock run of their own.
+ */
+export function liftTrust(l: { lift_challenges: number; lift_verified: number; lift_own: number }): LiftTrust | null {
+  if (!l.lift_challenges) return null;
+  if (l.lift_verified === l.lift_challenges) return "verified";
+  return l.lift_own ? "self-reported" : "community";
+}
+export const LIFT_TRUST_LABEL: Record<LiftTrust, string> = {
+  verified: "CLI-verified",
+  "self-reported": "self-reported",
+  community: "vs community median",
+};

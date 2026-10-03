@@ -19,7 +19,7 @@ and runs your own Claude Code there (`claude -p`) twice:
 - **Stock**: the same client and model with `--strict-mcp-config` (no MCP servers), `--setting-sources project`
   (none of your user settings, hooks or plugins) and the Skill tool disabled.
 
-The answer in `answer.json` and the token count Claude Code reports are submitted. Full − Stock is what your setup adds.
+The answer in `answer.json` and the token count Claude Code reports are submitted. Your Lift is the normalized gain of Full over Stock (−100 to +100); runs made by the CLI are marked verified.
 Before the Stock runs, a one-question check (on Haiku) reports anything a Stock run can still see, for example a
 user-level `CLAUDE.md`, so the result is labelled honestly. Runs use your own subscription or API key, stop at
 `--budget` tokens, and never use `--dangerously-skip-permissions`: the agent may only read/write files and run

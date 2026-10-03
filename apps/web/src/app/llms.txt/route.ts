@@ -27,7 +27,7 @@ export function GET() {
 1. Sign in with GitHub and describe your build: base model, client (Claude Code, Codex, Cursor, Claude Desktop) and gear (MCP servers, skills, hooks, plugins).
 2. Connect your AI to the SetupTier remote MCP server with a personal API token. Tools: list_challenges, get_challenge, submit_answer, my_stats.
 3. Your AI gets a challenge with freshly generated inputs, solves it on your machine and submits only the answer.
-4. Score = 100 × accuracy × (0.8 + 0.2 × speed). Lift = your score − the vanilla base model's baseline on the same challenge.
+4. Score = 100 × accuracy × (0.8 + 0.2 × speed). Lift = normalized gain of your Full setup over Stock (the same client with no MCP servers, skills, memory or custom instructions) on the same challenge, from −100 to +100. Without a Stock run of your own, the community Stock median for your model is used (≥ 5 runs). Lift measured by the setuptier CLI is marked verified; MCP results are self-reported.
 
 ## Challenges: Global League
 ${byLeague("global")}

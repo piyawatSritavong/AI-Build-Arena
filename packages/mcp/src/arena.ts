@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AttemptMode, Json, ResultSource } from "@arena/core";
+import type { AttemptMode, Json, LiftBasis, ResultSource } from "@arena/core";
 import type { Database } from "@arena/db";
-import { computeScore, getChallenge } from "@arena/challenges";
+import { computeScore, getChallenge, normalizedGain } from "@arena/challenges";
 
 // Attempt lifecycle shared by the remote MCP tools and the CLI API.
 // db is a service-role client: every query scopes by userId.
@@ -92,12 +92,18 @@ export async function startAttempt(
   };
 }
 
+/** The challenge's Paired Lift after this submission (see supabase/migrations/*_paired_lift.sql). */
+export type ChallengeLift = { lift: number; basis: LiftBasis; verified: boolean; full_runs: number; baseline_runs: number };
+
 export type SubmittedAnswer = {
   ok: true;
   correct: boolean;
   accuracy: number;
   score: number;
+  /** This run vs the baseline (normalized gain, −100…+100); Full runs only. */
   lift: number | null;
+  /** Mean ranked Full vs baseline for this challenge: the number on the card and leaderboard. */
+  challenge_lift: ChallengeLift | null;
   lift_note: string;
   duration_seconds: number;
   feedback?: string;
@@ -147,41 +153,50 @@ export async function submitAttempt(
   const { expected } = def.generate(attempt.seed);
   const result = def.verify(parseAnswer(input.answer), expected);
 
-  // A Stock run is itself the baseline, so it has no Lift. (Paired Lift lands on D12.)
-  const isStock = attempt.build_variants?.kind === "stock";
-  let baselineScore: number | undefined;
-  let baselineModel: string | undefined;
-  if (attempt.build_id && !isStock) {
-    const { data: build } = await db.from("builds").select("base_model").eq("id", attempt.build_id).maybeSingle();
-    if (build) {
-      const { data: bl } = await db.from("baselines").select("avg_score").eq("challenge_id", def.id).eq("model", build.base_model).maybeSingle();
-      if (bl) [baselineScore, baselineModel] = [Number(bl.avg_score), build.base_model];
-    }
-  }
   const timeLimitMs = (attempt.challenges?.time_limit_seconds ?? 900) * 1000;
-  const { score, lift } = computeScore({ accuracy: result.accuracy, durationMs, timeLimitMs, baselineScore });
+  const { score } = computeScore({ accuracy: result.accuracy, durationMs, timeLimitMs });
+
+  // A Stock run is itself a baseline, so it has no Lift of its own.
+  const isStock = attempt.build_variants?.kind === "stock";
+  let lift: number | null = null;
+  if (attempt.build_id && !isStock) {
+    const { data: bl } = await db.rpc("lift_baseline", { p_user: userId, p_build: attempt.build_id, p_challenge: def.id }).maybeSingle();
+    if (bl?.score != null) lift = normalizedGain(score, Number(bl.score));
+  }
 
   const { data: updated } = await db
     .from("attempts")
-    .update({ ...base, status: result.correct ? "passed" : "failed", correct: result.correct, score, lift: lift ?? null })
+    .update({ ...base, status: result.correct ? "passed" : "failed", correct: result.correct, score, lift })
     .eq("id", attempt.id)
     .eq("status", "issued")
     .select("id");
   if (!updated?.length) return { ok: false, error: "Attempt was already submitted." };
-  await track(db, userId, "challenge_submitted", { challenge_id: def.id, correct: result.correct, score, has_lift: lift !== undefined, source });
+  await track(db, userId, "challenge_submitted", { challenge_id: def.id, correct: result.correct, score, has_lift: lift !== null, source });
+
+  const { data: pair } = await db.rpc("paired_lifts", { p_user: userId, p_challenge: def.id }).maybeSingle();
+  const challengeLift: ChallengeLift | null = pair
+    ? { lift: Number(pair.lift), basis: pair.basis as LiftBasis, verified: pair.verified, full_runs: pair.full_runs, baseline_runs: pair.baseline_runs }
+    : null;
 
   return {
     ok: true,
     correct: result.correct,
     accuracy: result.accuracy,
     score,
-    lift: lift ?? null,
-    lift_note: isStock
-      ? "Stock run recorded: it is the baseline your Full setup's Lift is measured against."
-      : baselineModel
-        ? `vs vanilla ${baselineModel}`
-        : 'No baseline yet: run this challenge once with variant "stock" to measure your Lift.',
+    lift,
+    challenge_lift: challengeLift,
+    lift_note: liftNote(isStock, challengeLift),
     duration_seconds: Math.round(durationMs / 1000),
     feedback: result.feedback,
   };
+}
+
+function liftNote(isStock: boolean, c: ChallengeLift | null): string {
+  const stockHint = 'Run this challenge with variant "stock" (the same client with none of your add-ons) to measure your own Lift.';
+  if (!c) return isStock ? "Stock run recorded. Your Lift appears once this build has a ranked Full run on this challenge." : `No baseline yet. ${stockHint}`;
+  const vs =
+    c.basis === "own"
+      ? `vs your own Stock runs (${c.baseline_runs})${c.verified ? ", verified by the CLI" : ", self-reported"}`
+      : `vs the community Stock median for your model (${c.baseline_runs} runs). ${stockHint}`;
+  return `Challenge Lift ${c.lift >= 0 ? "+" : ""}${c.lift} ${vs}.`;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { liftTrust, type LiftTrust } from "@arena/core";
 import { SpriteView } from "@/components/sprite";
 import { fmt, signed } from "@/lib/cards";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -10,7 +11,7 @@ import { JsonLd } from "@/components/json-ld";
 import { absoluteUrl, pageMeta } from "@/lib/site";
 
 const LEAGUE_META = {
-  overall: { title: "AI Setup Leaderboard", description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the vanilla model." },
+  overall: { title: "AI Setup Leaderboard", description: "Rankings of AI coding setups (Claude Code, Codex, Cursor with MCP servers and skills) by verified challenge score and Lift over the same client with nothing added." },
   global: { title: "Global League Leaderboard", description: "Global League rankings of AI coding setups on output-verified logic, algorithm and data challenges, by score and Lift." },
   thai: { title: "Thai League Leaderboard", description: "Thai League rankings of AI setups on Thai baht text, Buddhist-era dates, Thai ID checksums, addresses and VAT/withholding tax challenges." },
 };
@@ -84,7 +85,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
                 <th>Model*</th>
                 <th className="text-right">Passed</th>
                 <th className="text-right">Score</th>
-                <th className="text-right">Avg Lift</th>
+                <th className="text-right">Lift</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-foreground/10">
@@ -100,15 +101,27 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
                   <td className="opacity-70">{r.base_model ?? "—"}</td>
                   <td className="text-right">{r.passed}</td>
                   <td className="text-right">{fmt(r.total_score, 0)}</td>
-                  <td className="text-right">{signed(r.avg_lift)}</td>
+                  <td className="text-right">
+                    {signed(r.avg_lift)}
+                    {r.lift_challenges > 0 && <LiftMark trust={liftTrust({ lift_challenges: r.lift_challenges, lift_verified: r.lift_verified, lift_own: r.lift_own })} />}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-xs opacity-50">* Model is self-declared by each builder. Scores come from verified answers.</p>
+          <p className="mt-2 text-xs opacity-50">
+            Lift = how much a setup beats the same client with nothing added (Stock), −100 to +100. ✓ CLI-verified · † vs community median (no own Stock run yet) · no mark = self-reported.
+            <br />* Model is self-declared by each builder. Scores come from verified answers.
+          </p>
         </div>
       )}
     </div>
     </PageShell>
   );
+}
+
+function LiftMark({ trust }: { trust: LiftTrust | null }) {
+  if (trust === "verified") return <span title="CLI-verified" className="ml-1 text-emerald-500">✓</span>;
+  if (trust === "community") return <span title="vs community median" className="ml-1 opacity-60">†</span>;
+  return null;
 }

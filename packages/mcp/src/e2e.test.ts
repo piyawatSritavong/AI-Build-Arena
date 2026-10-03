@@ -13,6 +13,7 @@ const db = url ? createClient<Database>(process.env.SUPABASE_URL!, process.env.S
 
 describe.skipIf(!url)("MCP e2e", () => {
   let userId = "";
+  let peerId = "";
   let client: Client;
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const r = (await client.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean };
@@ -24,7 +25,6 @@ describe.skipIf(!url)("MCP e2e", () => {
     if (error) throw error;
     userId = data.user.id;
     await db.from("builds").insert({ user_id: userId, name: "e2e build", base_model: "e2e-vanilla" });
-    await db.from("baselines").upsert({ challenge_id: "sum-of-evens", model: "e2e-vanilla", runs: 3, pass_rate: 0.67, avg_score: 70 });
     const t = await generateApiToken();
     await db.from("api_tokens").insert({ user_id: userId, token_prefix: t.prefix, token_hash: t.hash });
     client = new Client({ name: "arena-e2e", version: "0.0.0" });
@@ -33,8 +33,8 @@ describe.skipIf(!url)("MCP e2e", () => {
 
   afterAll(async () => {
     await client?.close();
-    await db.from("baselines").delete().eq("model", "e2e-vanilla");
     if (userId) await db.auth.admin.deleteUser(userId);
+    if (peerId) await db.auth.admin.deleteUser(peerId);
   });
 
   it("rejects a bad token", async () => {
@@ -51,13 +51,14 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(ids).toEqual(expect.arrayContaining(["sum-of-evens", "thai-baht-text", "thai-vat-wht"]));
   });
 
-  it("solves sum-of-evens with Lift, blocks resubmission", async () => {
+  it("solves sum-of-evens (no baseline yet), blocks resubmission", async () => {
     const a = await call("get_challenge", { challenge_id: "sum-of-evens" });
     const answer = (a.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
     const r = await call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer), model: "e2e", tokens_used: 123 });
     expect(r).toMatchObject({ correct: true, accuracy: 1 });
     expect(r.score).toBeGreaterThan(99);
-    expect(r.lift).toBeCloseTo(r.score - 70, 2);
+    expect(r).toMatchObject({ lift: null, challenge_lift: null });
+    expect(r.lift_note).toContain("No baseline yet");
     const again = await call("submit_answer", { attempt_id: a.attempt_id, answer: "0" });
     expect(again.isError).toBe(true);
   });
@@ -77,16 +78,20 @@ describe.skipIf(!url)("MCP e2e", () => {
   });
 
   it("records Stock and practice runs without touching the leaderboard", async () => {
-    const solve = async (variant: string, mode: string) => {
+    const solve = async (variant: string, mode: string, right = true) => {
       const a = await call("get_challenge", { challenge_id: "sum-of-evens", variant, mode });
       expect(a).toMatchObject({ variant, mode });
       const answer = (a.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
-      return call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer) });
+      return call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(right ? answer : answer + 1) });
     };
-    const stock = await solve("stock", "ranked");
-    expect(stock).toMatchObject({ correct: true, lift: null });
-    expect(stock.lift_note).toContain("Stock run");
-    expect((await solve("full", "practice")).correct).toBe(true);
+    // Paired Lift: Full ≈ 100 over an own Stock of 0 → normalized gain ≈ +100, self-reported through MCP.
+    const stock = await solve("stock", "ranked", false);
+    expect(stock).toMatchObject({ correct: false, lift: null, challenge_lift: { basis: "own", verified: false } });
+    expect(stock.challenge_lift.lift).toBeGreaterThan(99);
+    expect(stock.lift_note).toContain("self-reported");
+    const practice = await solve("full", "practice");
+    expect(practice.correct).toBe(true);
+    expect(practice.lift).toBeGreaterThan(99); // this run vs the own Stock baseline
 
     const { data: rows } = await db
       .from("attempts")
@@ -99,6 +104,38 @@ describe.skipIf(!url)("MCP e2e", () => {
     const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
     const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
     expect((card as { passed: number }).passed).toBe(1); // only the ranked Full pass counts
+  });
+
+  it("uses the community Stock median: as a fallback, and as a floor for self-reported Stock", async () => {
+    // A peer on the same base model with 5 Stock runs per challenge (MCP, weight 0.5 each): median 50.
+    const { data: peer } = await db.auth.admin.createUser({ email: `e2e-peer-${Date.now()}@arena.test`, email_confirm: true, user_metadata: { user_name: "e2e-peer" } });
+    peerId = peer.user!.id;
+    const { data: build } = await db.from("builds").insert({ user_id: peerId, name: "peer build", base_model: "e2e-vanilla" }).select("id").single();
+    const { data: stockVariant } = await db.from("build_variants").select("id").eq("build_id", build!.id).eq("kind", "stock").single();
+    const now = new Date().toISOString();
+    const rows = ["sum-of-evens", "thai-baht-text"].flatMap((challenge_id) =>
+      [40, 50, 50, 60, 90].map((score) => ({
+        user_id: peerId, build_id: build!.id, variant_id: stockVariant!.id, challenge_id, challenge_version: getChallenge(challenge_id)!.version,
+        seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, status: "failed" as const, correct: false, score, source: "mcp" as const,
+      })),
+    );
+    expect((await db.from("attempts").insert(rows)).error).toBeNull();
+
+    const { data: lifts } = await db.rpc("paired_lifts", { p_user: userId });
+    const by = Object.fromEntries(lifts!.map((l) => [l.challenge_id, l]));
+    // sum-of-evens: own MCP Stock scored 0, but self-reported Stock cannot sit below the community median.
+    expect(by["sum-of-evens"]).toMatchObject({ basis: "own", baseline_score: 50, verified: false, weight: 0.5 });
+    // thai-baht-text: no Stock run of the user's own → community median of 5 runs.
+    expect(by["thai-baht-text"]).toMatchObject({ basis: "community", baseline_score: 50, baseline_runs: 5 });
+    expect(Number(by["thai-baht-text"]!.lift)).toBeCloseTo(((Number(by["thai-baht-text"]!.full_score) - 50) / 50) * 100, 1);
+
+    const stats = await call("my_stats");
+    expect(stats.challenges["thai-baht-text"].lift).toMatchObject({ basis: "community" });
+    const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+    const { data: card } = await db.rpc("profile_card", { p_username: profile!.username });
+    expect(card).toMatchObject({ lift_challenges: 2, lift_own: 1, lift_verified: 0 });
+    const expected = (Number(by["sum-of-evens"]!.lift) + Number(by["thai-baht-text"]!.lift)) / 2; // equal weights
+    expect(Number((card as { avg_lift: number }).avg_lift)).toBeCloseTo(expected, 1);
   });
 
   it("caps unfinished attempts at 3 and records events", async () => {

@@ -90,19 +90,20 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     "my_stats",
     {
       title: "My stats",
-      description: "Your attempts summary: passed/failed counts, average and best scores per challenge.",
+      description: "Your attempts summary: passed/failed counts, average and best scores, and Lift (Full vs Stock) per challenge.",
       annotations: { readOnlyHint: true },
     },
     async () => {
-      const { data, error } = await db.from("attempts").select("challenge_id, status, score, lift").eq("user_id", userId).neq("status", "issued");
+      const { data, error } = await db.from("attempts").select("challenge_id, status, score").eq("user_id", userId).neq("status", "issued");
       if (error) return fail("Could not load stats.");
-      const per = new Map<string, { attempts: number; passed: number; best_score: number; best_lift: number | null }>();
+      const { data: lifts } = await db.rpc("paired_lifts", { p_user: userId });
+      const liftOf = new Map((lifts ?? []).map((l) => [l.challenge_id, { lift: Number(l.lift), basis: l.basis, verified: l.verified }]));
+      const per = new Map<string, { attempts: number; passed: number; best_score: number; lift: { lift: number; basis: string; verified: boolean } | null }>();
       for (const a of data) {
-        const s = per.get(a.challenge_id) ?? { attempts: 0, passed: 0, best_score: 0, best_lift: null };
+        const s = per.get(a.challenge_id) ?? { attempts: 0, passed: 0, best_score: 0, lift: liftOf.get(a.challenge_id) ?? null };
         s.attempts++;
         if (a.status === "passed") s.passed++;
         s.best_score = Math.max(s.best_score, Number(a.score ?? 0));
-        if (a.lift !== null) s.best_lift = Math.max(s.best_lift ?? -Infinity, Number(a.lift));
         per.set(a.challenge_id, s);
       }
       const scores = data.map((a) => Number(a.score ?? 0));

@@ -306,14 +306,32 @@ isOneToOne: false
               "category": string,"challenge_id": string,"league": Database["public"]['Enums']["league"],"lift": number,"score": number,"user_id": string
             }[]
                            },
+"community_stock_baseline":
+{ Args: { "p_challenge": string,"p_exclude"?: string,"p_model": string }; Returns: {
+              "runs": number,"score": number
+            }[]
+                           },
 "leaderboard":
 { Args: { "p_league"?: Database["public"]['Enums']["league"],"p_limit"?: number }; Returns: {
-              "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"passed": number,"rank": number,"sprite_id": string,"total_score": number,"username": string
+              "avatar_url": string,"avg_lift": number,"base_model": string,"display_name": string,"lift_challenges": number,"lift_own": number,"lift_verified": number,"passed": number,"rank": number,"sprite_id": string,"total_score": number,"username": string
             }[]
+                           },
+"lift_baseline":
+{ Args: { "p_build": string,"p_challenge": string,"p_user": string }; Returns: {
+              "basis": string,"runs": number,"score": number,"verified": boolean
+            }[]
+                           },
+"normalized_gain":
+{ Args: { "p_base": number,"p_full": number }; Returns: number
                            },
 "own_primary_build":
 { Args: Record<PropertyKey, never>; Returns: {
               "base_model": string,"client": string,"gear": Json,"id": string,"loadout_visibility": Database["public"]['Enums']["loadout_visibility"],"name": string,"sprite_id": string
+            }[]
+                           },
+"paired_lifts":
+{ Args: { "p_challenge"?: string,"p_user"?: string }; Returns: {
+              "baseline_runs": number,"baseline_score": number,"basis": string,"challenge_id": string,"full_runs": number,"full_score": number,"lift": number,"user_id": string,"verified": boolean,"weight": number
             }[]
                            },
 "profile_card":

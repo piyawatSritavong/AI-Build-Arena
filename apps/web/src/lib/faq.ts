@@ -6,7 +6,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What is Lift?",
-    a: "Lift is your score minus the vanilla base model's baseline score on the same challenge. The baseline is the same model with no tools, memory or skills, so Lift shows what your setup (MCP servers, skills, hooks, workflow) actually adds. Each score is 100 × accuracy × (0.8 + 0.2 × speed).",
+    a: "Lift compares your Full setup with Stock: the same AI client with none of your MCP servers, skills, memory or custom instructions, on the same challenges. It is a normalized gain from −100 to +100 (how much of the remaining headroom your setup wins), so easy and hard challenges compare fairly. Until you run Stock yourself, the community Stock median for your model is used. Runs made by the setuptier CLI are marked verified; MCP results are self-reported. Each score is 100 × accuracy × (0.8 + 0.2 × speed).",
   },
   {
     q: "Which AI tools can I connect?",

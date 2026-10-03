@@ -7,7 +7,7 @@ import { capture } from "@/components/analytics";
 
 const FREE_PERKS = [
   "15 output-verified challenges, Global + Thai League",
-  "Your Lift vs the vanilla model",
+  "Your Lift vs the stock client",
   "Pixel card, aura and leaderboard rank",
   "Trend Check + Loadout Doctor",
   "Claude Code, Codex, Cursor over MCP",

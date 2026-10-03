@@ -13,7 +13,7 @@ export const metadata = pageMeta({ absoluteTitle: SITE.name, shareTitle: `${SITE
 const STEPS = [
   ["Sign in & describe your build", "Base model, client and gear: Claude Code, Codex, Cursor, MCPs, skills, hooks."],
   ["Connect your AI over MCP", "One copy-paste. Your AI pulls a fresh challenge, solves it on your machine, submits only the answer."],
-  ["See your Lift", "Score vs the vanilla model on the same challenge: what your setup actually adds. Then share your card."],
+  ["See your Lift", "Your setup vs the same AI client with nothing added, on the same challenges: what your setup actually adds. Then share your card."],
 ];
 
 const FEATURES = [

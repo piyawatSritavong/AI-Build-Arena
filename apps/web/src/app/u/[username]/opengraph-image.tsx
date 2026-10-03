@@ -15,7 +15,7 @@ export default async function Image({ params }: { params: Promise<{ username: st
     ? [
         ["Passed", String(card.passed)],
         ["Score", fmt(card.total_score, 0)],
-        ["Avg Lift", signed(card.avg_lift)],
+        ["Lift", signed(card.avg_lift)],
         ["Rank", rankLabel(card)],
       ]
     : [];

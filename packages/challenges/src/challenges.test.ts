@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bahtText, challenges, computeScore, createRng } from "./index";
+import { bahtText, challenges, computeScore, createRng, normalizedGain } from "./index";
 
 describe("rng", () => {
   it("is deterministic per seed", () => {
@@ -40,9 +40,22 @@ describe.each(challenges.map((c) => [c.id, c] as const))("%s", (_, c) => {
 });
 
 describe("computeScore", () => {
-  it("rewards accuracy and speed, computes lift", () => {
+  it("rewards accuracy and speed", () => {
     expect(computeScore({ accuracy: 1, durationMs: 0, timeLimitMs: 1000 })).toEqual({ score: 100 });
-    expect(computeScore({ accuracy: 1, durationMs: 2000, timeLimitMs: 1000, baselineScore: 70 })).toEqual({ score: 80, lift: 10 });
+    expect(computeScore({ accuracy: 1, durationMs: 2000, timeLimitMs: 1000 })).toEqual({ score: 80 });
+  });
+});
+
+describe("normalizedGain", () => {
+  it("scales gains by headroom and losses by the baseline, within −100…+100", () => {
+    expect(normalizedGain(100, 50)).toBe(100);
+    expect(normalizedGain(75, 50)).toBe(50);
+    expect(normalizedGain(25, 50)).toBe(-50);
+    expect(normalizedGain(50, 0)).toBe(50);
+    expect(normalizedGain(0, 0)).toBe(0);
+    expect(normalizedGain(100, 100)).toBe(0);
+    expect(normalizedGain(90, 100)).toBe(-10);
+    expect(normalizedGain(0, 80)).toBe(-100);
   });
 });
 

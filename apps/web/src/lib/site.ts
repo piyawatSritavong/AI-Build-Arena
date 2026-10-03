@@ -5,7 +5,7 @@ export const SITE = {
   url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   tagline: "What tier is your AI setup?",
   description:
-    "SetupTier measures how much your AI coding setup (Claude Code, Codex, Cursor, MCP servers, skills, hooks) adds over the vanilla model: your Lift. Solve output-verified challenges, get a pixel card and climb the Global and Thai leaderboards.",
+    "SetupTier measures how much your AI coding setup (Claude Code, Codex, Cursor, MCP servers, skills, hooks) adds over the same client with nothing added: your Lift. Solve output-verified challenges, get a pixel card and climb the Global and Thai leaderboards.",
   keywords: [
     "AI setup",
     "AI coding benchmark",
