@@ -7,7 +7,7 @@ import { JsonLd } from "@/components/json-ld";
 import { FAQ } from "@/lib/faq";
 import { pageMeta, SITE } from "@/lib/site";
 
-export const metadata = pageMeta({ absoluteTitle: `${SITE.name}: ${SITE.tagline}`, path: "/" });
+export const metadata = pageMeta({ absoluteTitle: SITE.name, shareTitle: `${SITE.name}: ${SITE.tagline}`, path: "/" });
 
 const STEPS = [
   ["Sign in & describe your build", "Base model, client and gear: Claude Code, Codex, Cursor, MCPs, skills, hooks."],

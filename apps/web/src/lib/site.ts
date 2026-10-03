@@ -28,6 +28,8 @@ type PageMetaInput = {
   title?: string;
   /** Use as-is (no "· SetupTier" suffix), e.g. the home page. */
   absoluteTitle?: string;
+  /** Title for share cards (og/twitter) when it should differ from the browser tab title. */
+  shareTitle?: string;
   description?: string;
   path: string;
   images?: { url: string; width?: number; height?: number; alt?: string }[];
@@ -38,8 +40,8 @@ type PageMetaInput = {
  * Full per-page metadata. Next merges metadata shallowly, so a page that sets `openGraph`
  * replaces the layout's whole object: build every field here instead of relying on inheritance.
  */
-export function pageMeta({ title, absoluteTitle, description = SITE.description, path, images, noindex }: PageMetaInput): Metadata {
-  const fullTitle = absoluteTitle ?? (title ? `${title} · ${SITE.name}` : SITE.name);
+export function pageMeta({ title, absoluteTitle, shareTitle, description = SITE.description, path, images, noindex }: PageMetaInput): Metadata {
+  const fullTitle = shareTitle ?? absoluteTitle ?? (title ? `${title} · ${SITE.name}` : SITE.name);
   const ogImages = images ?? [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }];
   return {
     title: absoluteTitle ? { absolute: absoluteTitle } : title,
