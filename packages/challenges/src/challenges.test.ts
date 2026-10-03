@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LEAGUES } from "@arena/core";
+import { detectFlags } from "./index";
 import { bahtText, challenges, computeScore, createRng, normalizedGain, wilsonLower } from "./index";
 
 describe("rng", () => {
@@ -141,5 +142,22 @@ describe("memory fitness", () => {
     expect(def.verify(six, exp)).toMatchObject({ correct: true, accuracy: 0.75 });
     const five = Object.fromEntries(keys.map((k, i) => [k, i < 5 ? exp[k]! : ""]));
     expect(def.verify(five, exp).correct).toBe(false);
+  });
+});
+
+describe("anti-cheat flags", () => {
+  const base = { source: "mcp" as const, correct: true, difficulty: 3, durationMs: 60_000, answer: "42" };
+  it("flags impossible MCP passes, implausible tokens and blank answers", () => {
+    expect(detectFlags(base)).toEqual([]);
+    expect(detectFlags({ ...base, durationMs: 5_000 })).toEqual(["too_fast"]); // < 3 × 2 s
+    expect(detectFlags({ ...base, durationMs: 6_000 })).toEqual([]);
+    expect(detectFlags({ ...base, durationMs: 100, correct: false })).toEqual([]); // fast fails are harmless
+    expect(detectFlags({ ...base, durationMs: 100, difficulty: 1 })).toEqual([]); // warm-ups are exempt
+    expect(detectFlags({ ...base, durationMs: 100, source: "cli" })).toEqual([]); // the CLI times its own runs
+    expect(detectFlags({ ...base, tokensSelfReported: 12 })).toEqual(["tokens_implausible"]);
+    expect(detectFlags({ ...base, tokensSelfReported: 30_000_000 })).toEqual(["tokens_implausible"]);
+    expect(detectFlags({ ...base, tokensSelfReported: 4_000 })).toEqual([]);
+    for (const blank of ["", "  ", '""', "null", "{}", "[]"]) expect(detectFlags({ ...base, correct: false, answer: blank })).toEqual(["blank_answer"]);
+    expect(detectFlags({ ...base, answer: '{"q1": ""}' })).toEqual([]);
   });
 });

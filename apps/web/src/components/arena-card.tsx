@@ -1,4 +1,4 @@
-import { auraFor, auraStage, LIFT_TRUST_LABEL, liftTrust, STAGE_NAMES, type ProfileCard } from "@arena/core";
+import { auraFor, auraStage, LIFT_TRUST_LABEL, liftTrust, STAGE_NAMES, UNDER_REVIEW_TRUST, type ProfileCard } from "@arena/core";
 import { SpriteView } from "./sprite";
 import { cardFootnote, efficiencyLabel, fmt, rankLabel, reliabilityLabel, signed } from "@/lib/cards";
 
@@ -34,6 +34,11 @@ export function ArenaCard({ card }: { card: ProfileCard }) {
             {aura.label}
           </span>{" "}
           <span className="opacity-70">Stage {stage} · {STAGE_NAMES[stage]}</span>
+          {card.trust < UNDER_REVIEW_TRUST && (
+            <span className="ml-2 rounded-full border border-amber-500/60 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400" title="Several results were flagged as anomalies. This account is left off the leaderboard until they age out or are reviewed.">
+              Under review
+            </span>
+          )}
         </p>
         <dl className="grid grid-cols-3 gap-2 text-center">
           {[

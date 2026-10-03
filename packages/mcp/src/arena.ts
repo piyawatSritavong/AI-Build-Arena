@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AttemptMode, Json, LiftBasis, ResultSource } from "@arena/core";
 import type { Database } from "@arena/db";
-import { computeScore, getChallenge, normalizedGain } from "@arena/challenges";
+import { computeScore, detectFlags, flagNote, getChallenge, normalizedGain, type AttemptFlag } from "@arena/challenges";
 
 // Attempt lifecycle shared by the remote MCP tools and the CLI API.
 // db is a service-role client: every query scopes by userId.
@@ -181,6 +181,9 @@ export type SubmittedAnswer = {
   phase?: "learn" | "exam";
   exam_due_at?: string;
   exam_closes_at?: string;
+  /** Anomaly flags (anti-cheat v1) and what they mean for this result. */
+  flags?: AttemptFlag[];
+  flag_note?: string;
 };
 
 function parseAnswer(raw: string): unknown {
@@ -231,6 +234,7 @@ export async function submitAttempt(
 
   const timeLimitMs = (attempt.challenges?.time_limit_seconds ?? 900) * 1000;
   const { score } = computeScore({ accuracy: result.accuracy, durationMs, timeLimitMs });
+  const flags = detectFlags({ source: attempt.source, correct: result.correct, difficulty: def.difficulty, durationMs, tokensSelfReported: input.tokensSelfReported, answer: input.answer });
 
   // A Stock run is itself a baseline, so it has no Lift of its own.
   const isStock = attempt.build_variants?.kind === "stock";
@@ -242,12 +246,13 @@ export async function submitAttempt(
 
   const { data: updated } = await db
     .from("attempts")
-    .update({ ...base, status: result.correct ? "passed" : "failed", correct: result.correct, score, lift })
+    .update({ ...base, status: result.correct ? "passed" : "failed", correct: result.correct, score, lift, flags })
     .eq("id", attempt.id)
     .eq("status", "issued")
     .select("id");
   if (!updated?.length) return { ok: false, error: "Attempt was already submitted." };
-  await track(db, userId, "challenge_submitted", { challenge_id: def.id, correct: result.correct, score, has_lift: lift !== null, source });
+  await track(db, userId, "challenge_submitted", { challenge_id: def.id, correct: result.correct, score, has_lift: lift !== null, source, flags: flags.join(",") });
+  if (flags.length) await db.rpc("refresh_trust_score", { p_user: userId });
   if (def.memory) {
     await db
       .from("memory_enrollments")
@@ -272,6 +277,7 @@ export async function submitAttempt(
     duration_seconds: Math.round(durationMs / 1000),
     feedback: result.feedback,
     ...(def.memory ? { phase: "exam" as const } : {}),
+    ...(flags.length ? { flags, flag_note: flagNote(flags, def.difficulty) } : {}),
   };
 }
 

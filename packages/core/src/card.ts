@@ -114,6 +114,8 @@ export interface ProfileCard {
   leagues: Partial<Record<League, number>>; // passes per league
   league_ranks: Partial<Record<League, number>>;
   anchors_passed: number;
+  trust: number; // anti-cheat trust 0–1 (account age × recent flags); below UNDER_REVIEW_TRUST = off the leaderboard
+  flagged_attempts: number; // anomaly flags in the last 90 days
   memory: number | null; // Memory Fitness: % of facts recalled at the exam (latest Full round)
   memory_retention: number | null; // exam ÷ learn-day quiz, %
   memory_days: number | null; // days between learn day and exam
@@ -134,3 +136,6 @@ export const LIFT_TRUST_LABEL: Record<LiftTrust, string> = {
   "self-reported": "self-reported",
   community: "vs community median",
 };
+
+/** Accounts below this trust score are left off the public leaderboard (see *_anti_cheat_v1.sql). */
+export const UNDER_REVIEW_TRUST = 0.25;

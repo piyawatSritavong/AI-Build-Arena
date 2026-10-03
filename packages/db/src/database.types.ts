@@ -63,13 +63,13 @@ isOneToOne: false
                   ]
                 },"attempts": {
                   Row: {
-                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"client": string | null,"correct": boolean | null,"cost_usd": number | null,"duration_ms": number | null,"expires_at": string,"id": string,"issued_at": string,"lift": number | null,"mode": Database["public"]['Enums']["attempt_mode"],"model_self_reported": string | null,"score": number | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_measured": number | null,"tokens_self_reported": number | null,"user_id": string,"variant_id": string | null
+                    "build_id": string | null,"challenge_id": string,"challenge_version": number,"client": string | null,"correct": boolean | null,"cost_usd": number | null,"duration_ms": number | null,"expires_at": string,"flags": (string)[],"id": string,"issued_at": string,"lift": number | null,"mode": Database["public"]['Enums']["attempt_mode"],"model_self_reported": string | null,"score": number | null,"seed": string,"source": Database["public"]['Enums']["result_source"],"status": Database["public"]['Enums']["attempt_status"],"submitted_at": string | null,"tokens_measured": number | null,"tokens_self_reported": number | null,"user_id": string,"variant_id": string | null
                   }
                   Insert: {
-                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at": string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id": string,"variant_id"?: string | null
+                    "build_id"?: string | null,"challenge_id": string,"challenge_version": number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at": string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed": string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id": string,"variant_id"?: string | null
                   }
                   Update: {
-                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at"?: string,"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id"?: string,"variant_id"?: string | null
+                    "build_id"?: string | null,"challenge_id"?: string,"challenge_version"?: number,"client"?: string | null,"correct"?: boolean | null,"cost_usd"?: number | null,"duration_ms"?: number | null,"expires_at"?: string,"flags"?: (string)[],"id"?: string,"issued_at"?: string,"lift"?: number | null,"mode"?: Database["public"]['Enums']["attempt_mode"],"model_self_reported"?: string | null,"score"?: number | null,"seed"?: string,"source"?: Database["public"]['Enums']["result_source"],"status"?: Database["public"]['Enums']["attempt_status"],"submitted_at"?: string | null,"tokens_measured"?: number | null,"tokens_self_reported"?: number | null,"user_id"?: string,"variant_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -327,13 +327,13 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"bio": string | null,"created_at": string,"display_name": string | null,"id": string,"professions": (string)[],"trust_score": number,"updated_at": string,"username": string
+                    "avatar_url": string | null,"bio": string | null,"created_at": string,"display_name": string | null,"github_created_at": string | null,"id": string,"professions": (string)[],"trust_score": number,"updated_at": string,"username": string
                   }
                   Insert: {
-                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id": string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username": string
+                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"github_created_at"?: string | null,"id": string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username": string
                   }
                   Update: {
-                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"id"?: string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username"?: string
+                    "avatar_url"?: string | null,"bio"?: string | null,"created_at"?: string,"display_name"?: string | null,"github_created_at"?: string | null,"id"?: string,"professions"?: (string)[],"trust_score"?: number,"updated_at"?: string,"username"?: string
                   }
                   Relationships: [
                     
@@ -425,6 +425,9 @@ isOneToOne: false
                            },
 "rate_limit_hit":
 { Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean
+                           },
+"refresh_trust_score":
+{ Args: { "p_user": string }; Returns: number
                            },
 "reliability_stats":
 { Args: { "p_league"?: Database["public"]['Enums']["league"],"p_source"?: Database["public"]['Enums']["result_source"],"p_user"?: string }; Returns: {

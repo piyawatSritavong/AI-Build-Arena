@@ -56,7 +56,7 @@ describe.skipIf(!url)("MCP e2e", () => {
   it("solves sum-of-evens (no baseline yet), blocks resubmission", async () => {
     const a = await call("get_challenge", { challenge_id: "sum-of-evens" });
     const answer = (a.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
-    const r = await call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer), model: "e2e", tokens_used: 123 });
+    const r = await call("submit_answer", { attempt_id: a.attempt_id, answer: JSON.stringify(answer), model: "e2e", tokens_used: 1230 });
     expect(r).toMatchObject({ correct: true, accuracy: 1 });
     expect(r.score).toBeGreaterThan(99);
     expect(r).toMatchObject({ lift: null, challenge_lift: null });
@@ -141,18 +141,18 @@ describe.skipIf(!url)("MCP e2e", () => {
   });
 
   it("measures Efficiency against the model's community median and Reliability from 3+ runs", async () => {
-    // The peer passes sum-of-evens 5 times with 246 tokens each; this user's passes reported 123 → ×2.0 leaner.
+    // The peer passes sum-of-evens 5 times with 2460 tokens each; this user's passes reported 1230 → ×2.0 leaner.
     const { data: build } = await db.from("builds").select("id").eq("user_id", peerId).single();
     const { data: fullVariant } = await db.from("build_variants").select("id").eq("build_id", build!.id).eq("kind", "full").single();
     const now = new Date().toISOString();
     const rows = Array.from({ length: 5 }, () => ({
       user_id: peerId, build_id: build!.id, variant_id: fullVariant!.id, challenge_id: "sum-of-evens", challenge_version: getChallenge("sum-of-evens")!.version,
-      seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, duration_ms: 4000, status: "passed" as const, correct: true, score: 99, source: "mcp" as const, tokens_self_reported: 246,
+      seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, duration_ms: 4000, status: "passed" as const, correct: true, score: 99, source: "mcp" as const, tokens_self_reported: 2460,
     }));
     expect((await db.from("attempts").insert(rows)).error).toBeNull();
 
     const stats = await call("my_stats");
-    expect(stats.efficiency["sum-of-evens"]).toMatchObject({ tokens_per_pass: 123, vs_model_median: 2, tokens_measured: false });
+    expect(stats.efficiency["sum-of-evens"]).toMatchObject({ tokens_per_pass: 1230, vs_model_median: 2, tokens_measured: false });
     // 2 Full runs on sum-of-evens so far (ranked + practice): not enough for Reliability.
     expect(stats.reliability.lower_bound_pct).toBeNull();
     const a = await call("get_challenge", { challenge_id: "sum-of-evens", mode: "practice" });
@@ -261,12 +261,66 @@ describe.skipIf(!url)("MCP e2e", () => {
     expect(stats.memory.full).toMatchObject({ status: "waiting", learn_quiz_pct: 0, exam_recall_pct: null });
   });
 
+  it("flags anomalies, lowers trust, caps one account's weight and hides accounts under review", async () => {
+    const { data: profile } = await db.from("profiles").select("username").eq("id", userId).single();
+    const card = async () => (await db.rpc("profile_card", { p_username: profile!.username })).data as { passed: number; trust: number; flagged_attempts: number };
+    const passedBefore = (await card()).passed;
+    const expectedFor = async (attemptId: string, id: string) => {
+      const { data } = await db.from("attempts").select("seed").eq("id", attemptId).single();
+      return getChallenge(id)!.generate(data!.seed).expected;
+    };
+    // 1. A difficulty-2 pass submitted instantly: an AI cannot read, solve and submit that fast.
+    const fast = await call("get_challenge", { challenge_id: "interval-merge" });
+    const r1 = await call("submit_answer", { attempt_id: fast.attempt_id, answer: JSON.stringify(await expectedFor(fast.attempt_id, "interval-merge")) });
+    expect(r1).toMatchObject({ correct: true, flags: ["too_fast"] });
+    expect(r1.flag_note).toContain("does not count");
+    expect((await card()).passed).toBe(passedBefore); // kept, but not counted
+    // 2. An impossible token count is ignored for Efficiency.
+    const t = await call("get_challenge", { challenge_id: "sum-of-evens", mode: "practice" });
+    const sum = (t.input.numbers as number[]).filter((n) => n % 2 === 0).reduce((x, y) => x + y, 0);
+    expect(await call("submit_answer", { attempt_id: t.attempt_id, answer: JSON.stringify(sum), tokens_used: 3 })).toMatchObject({ flags: ["tokens_implausible"] });
+    expect((await call("my_stats")).efficiency["sum-of-evens"].tokens_per_pass).toBe(1230);
+    // 3. A blank Stock answer is no baseline (no sandbagging Stock).
+    const before = (await db.rpc("paired_lifts", { p_user: userId, p_challenge: "sum-of-evens" })).data![0]!;
+    const blank = await call("get_challenge", { challenge_id: "sum-of-evens", variant: "stock" });
+    expect(await call("submit_answer", { attempt_id: blank.attempt_id, answer: "" })).toMatchObject({ flags: ["blank_answer"] });
+    const after = (await db.rpc("paired_lifts", { p_user: userId, p_challenge: "sum-of-evens" })).data![0]!;
+    expect(after.baseline_runs).toBe(before.baseline_runs);
+    // Trust: unknown GitHub age 0.6 × (1 − 0.15 × 3 flags) = 0.33, still on the board.
+    const stats = await call("my_stats");
+    expect(stats.trust).toMatchObject({ score: 0.33, flagged_last_90_days: 3 });
+    const board = async () => ((await db.rpc("leaderboard", { p_model: "e2e-vanilla" })).data ?? []).map((r) => r.username);
+    expect(await board()).toContain(profile!.username);
+    // 4th flag → 0.6 × 0.4 = 0.24 < 0.25: under review, off the public board; the card still shows it.
+    const fast2 = await call("get_challenge", { challenge_id: "interval-merge" });
+    await call("submit_answer", { attempt_id: fast2.attempt_id, answer: JSON.stringify(await expectedFor(fast2.attempt_id, "interval-merge")) });
+    expect(await board()).not.toContain(profile!.username);
+    expect(await card()).toMatchObject({ trust: 0.24, flagged_attempts: 4 });
+
+    // One account = one vote: 6 zero-score Stock runs from one account do not outvote 2 accounts at 80.
+    const model = `e2e-cap-${Date.now()}`;
+    const now = new Date().toISOString();
+    for (const [i, scores] of [[0, [0, 0, 0, 0, 0, 0]], [1, [80]], [2, [80]]] as const) {
+      const { data } = await db.auth.admin.createUser({ email: `e2e-cap-${i}-${Date.now()}@arena.test`, email_confirm: true, user_metadata: { user_name: `e2e-cap-${i}` } });
+      linkIds.push(data.user!.id);
+      const { data: b } = await db.from("builds").insert({ user_id: data.user!.id, name: "cap", base_model: model }).select("id").single();
+      const { data: v } = await db.from("build_variants").select("id").eq("build_id", b!.id).eq("kind", "stock").single();
+      const rows = scores.map((score) => ({
+        user_id: data.user!.id, build_id: b!.id, variant_id: v!.id, challenge_id: "sum-of-evens", challenge_version: 1,
+        seed: crypto.randomUUID(), issued_at: now, expires_at: now, submitted_at: now, status: "failed" as const, correct: false, score, source: "mcp" as const,
+      }));
+      expect((await db.from("attempts").insert(rows)).error).toBeNull();
+    }
+    const { data: median } = await db.rpc("community_stock_baseline", { p_challenge: "sum-of-evens", p_model: model }).single();
+    expect(median).toMatchObject({ score: 80, runs: 8 });
+  });
+
   it("caps unfinished attempts at 3 and records events", async () => {
     for (let i = 0; i < 3; i++) expect((await call("get_challenge", { challenge_id: "roman-numerals" })).attempt_id).toBeTruthy();
     const blocked = await call("get_challenge", { challenge_id: "roman-numerals" });
     expect(blocked.isError).toBe(true);
     expect(blocked.error).toContain("unfinished");
     const { count } = await db.from("events").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("name", "challenge_submitted");
-    expect(count).toBe(5);
+    expect(count).toBe(9); // 5 earlier + 4 in the anti-cheat test
   });
 });

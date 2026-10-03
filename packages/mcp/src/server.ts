@@ -97,12 +97,14 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
     async () => {
       const { data, error } = await db.from("attempts").select("challenge_id, status, score").eq("user_id", userId).neq("status", "issued");
       if (error) return fail("Could not load stats.");
-      const [{ data: lifts }, { data: rel }, { data: eff }, { data: range }, { data: memory }] = await Promise.all([
+      const [{ data: lifts }, { data: rel }, { data: eff }, { data: range }, { data: memory }, { data: trust }, { count: flagged }] = await Promise.all([
         db.rpc("paired_lifts", { p_user: userId }),
         db.rpc("reliability_stats", { p_user: userId }).maybeSingle(),
         db.rpc("efficiency_stats", { p_user: userId }),
         db.rpc("range_stats", { p_user: userId }).maybeSingle(),
         db.rpc("memory_stats", { p_user: userId }),
+        db.from("profiles").select("trust_score").eq("id", userId).single(),
+        db.from("attempts").select("id", { count: "exact", head: true }).eq("user_id", userId).filter("flags", "neq", "{}").gt("submitted_at", new Date(Date.now() - 90 * 86_400_000).toISOString()),
       ]);
       const liftOf = new Map((lifts ?? []).map((l) => [l.challenge_id, { lift: Number(l.lift), basis: l.basis, verified: l.verified }]));
       const per = new Map<string, { attempts: number; passed: number; best_score: number; lift: { lift: number; basis: string; verified: boolean } | null }>();
@@ -122,6 +124,11 @@ export function createArenaMcpServer({ db, userId, source = "mcp" }: ArenaContex
           ? { lower_bound_pct: Number(rel.reliability), passes: rel.passes, runs: rel.runs, note: "95% Wilson lower bound over challenges run 3+ times" }
           : { lower_bound_pct: null, note: "Run a challenge 3+ times (mode practice is fine) to measure Reliability." },
         range: range ? { score: Number(range.range), categories_passed: range.categories_passed, categories: range.categories, note: "0–100, categories passed weighted by the hardest difficulty passed" } : null,
+        trust: {
+          score: trust ? Number(trust.trust_score) : null,
+          flagged_last_90_days: flagged ?? 0,
+          note: "Account age on GitHub × recent anomaly flags. Below 0.25 the account is left off the public leaderboard.",
+        },
         memory: Object.fromEntries(
           (memory ?? []).map((m) => [
             m.variant,

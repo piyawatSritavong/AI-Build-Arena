@@ -7,6 +7,7 @@ import { thaiBahtText } from "./defs/thai-baht-text";
 
 export { createRng } from "./rng";
 export { computeScore, normalizedGain } from "./scoring";
+export { detectFlags, flagNote, MIN_MS_PER_DIFFICULTY, TOKENS_PLAUSIBLE, type AttemptFlag } from "./anticheat";
 export { wilsonLower } from "@arena/core";
 export { bahtText } from "./defs/thai-baht-text";
 export { toRoman } from "./defs/global";
